@@ -1,53 +1,37 @@
-"use client";
+﻿"use client";
 
-import React from 'react';
-import {motion} from 'framer-motion';
-// This is your mock data "contract"
-const MOCK_PREDICTION = {
-  home_team: "Golden State Warriors",
-  away_team: "Los Angeles Lakers",
-  win_prob: 0.92,
-  home_player: {
-    team: "Golden State Warriors",
-    name: "Joshua Mathew",
-    pts: 50.4,
-    ast: 11.1,
-    reb: 18.5,
-    efg: "58.2%"
-  },
-  away_player: {
-    team: "Los Angeles Lakers",
-    name: "LeBron James",
-    pts: 48.2,
-    ast: 9.3,
-    reb: 12.1,
-    efg: "55.8%"
-  }
-};
-
-interface HoverBoxProps {
-  children: React.ReactNode;
-}
-
-export function HoverBox({ children }: HoverBoxProps) {
-  return (
-    <motion.div 
-      whileHover={{ scale: 1.05, borderColor: "#f97316" }} // Scale up and turn border orange
-      // transition={{ type: "spring", stiffness: 200 }}      // Makes it feel "bouncy" like a game UI
-      // className="p-6 bg-zinc-900 border border-zinc-800 rounded-2xl cursor-pointer"
-    >
-      {children}
-    </motion.div>
-  );
-}
+import React, { useEffect, useState } from 'react';
+import { motion } from 'framer-motion';
 
 interface PlayerType {
   team: string;
   name: string;
-  pts: number;
-  ast: number;
-  reb: number;
+  pts_per_game: number;
+  ast_per_game: number;
+  reb_per_game: number;
   efg: string;
+}
+
+interface PredictionType {
+  home_team: string;
+  away_team: string;
+  game_time: string;
+  win_prob: number;
+  home_player: PlayerType | null;
+  away_player: PlayerType | null;
+}
+
+const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
+
+export function HoverBox({ children }: { children: React.ReactNode }) {
+  return (
+    <motion.div
+      whileHover={{ scale: 1.05, borderColor: '#f97316' }}
+      className="transition-all"
+    >
+      {children}
+    </motion.div>
+  );
 }
 
 function PlayerCard({ player }: { player: PlayerType }) {
@@ -59,15 +43,15 @@ function PlayerCard({ player }: { player: PlayerType }) {
         <div className="grid grid-cols-4 gap-4 text-center">
           <div>
             <p className="text-zinc-500 text-xs">PTS</p>
-            <p className="text-xl font-bold">{player.pts}</p>
+            <p className="text-xl font-bold">{player.pts_per_game.toFixed(1)}</p>
           </div>
           <div>
             <p className="text-zinc-500 text-xs">AST</p>
-            <p className="text-xl font-bold">{player.ast}</p>
+            <p className="text-xl font-bold">{player.ast_per_game.toFixed(1)}</p>
           </div>
           <div>
             <p className="text-zinc-500 text-xs">REB</p>
-            <p className="text-xl font-bold">{player.reb}</p>
+            <p className="text-xl font-bold">{player.reb_per_game.toFixed(1)}</p>
           </div>
           <div>
             <p className="text-zinc-500 text-xs">eFG%</p>
@@ -80,50 +64,113 @@ function PlayerCard({ player }: { player: PlayerType }) {
 }
 
 export default function Dashboard() {
+  const [predictions, setPredictions] = useState<PredictionType[]>([]);
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const [loadingTime, setLoadingTime] = useState<number>(0);
+
+  useEffect(() => {
+    async function fetchPredictions() {
+      const startTime = Date.now();
+      const interval = setInterval(() => {
+        setLoadingTime(Date.now() - startTime);
+      }, 100);
+      try {
+        const res = await fetch(`${API_URL}/predictions`);
+        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+        const data: PredictionType[] = await res.json();
+        setPredictions(data);
+        setIsLoading(false);
+        clearInterval(interval);
+        setLoadingTime(Date.now() - startTime);
+      } catch (err: any) {
+        setError(err.message);
+        setIsLoading(false);
+        clearInterval(interval);
+      }
+    }
+
+    fetchPredictions();
+  }, []);
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev === 0 ? predictions.length - 1 : prev - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev === predictions.length - 1 ? 0 : prev + 1));
+  };
+
+  if (error) {
+    return <main className="min-h-screen bg-black text-white p-8">Error: {error}</main>;
+  }
+
+  if (isLoading) {
+    return <main className="min-h-screen bg-black text-white p-8">Loading upcoming games... ({(loadingTime / 1000).toFixed(1)}s)</main>;
+  }
+
+  if (predictions.length === 0) {
+    return <main className="min-h-screen bg-black text-white p-8">No games today.</main>;
+  }
+
+  const currentPrediction = predictions[currentIndex];
+
   return (
     <main className="min-h-screen bg-black text-white p-8 font-sans">
-      {/* Header Section */}
       <header className="mb-12 border-b border-zinc-800 pb-6">
         <h1 className="text-4xl font-black tracking-tighter italic">NBA PREDICT <span className="text-orange-300">v1.0</span></h1>
         <p className="text-zinc-400 mt-2 uppercase tracking-widest text-xs font-bold">Machine Learning Game Insights</p>
+        <p className="text-zinc-500 mt-1 text-sm">Game {currentIndex + 1} of {predictions.length}</p>
       </header>
 
-      {/* Hero Matchup Card */}
-          <HoverBox>
-        <section className="max-w-4xl mx-auto bg-zinc-900 rounded-3xl p-10 border border-zinc-800 shadow-2xl">
-          <div className="flex justify-between items-center mb-10">
-            <div className="text-center">
-              <h2 className="text-3xl font-bold">{MOCK_PREDICTION.away_team}</h2>
-              <p className="text-zinc-500 font-bold mt-2">AWAY</p>
-          </div>
-          
-          <div className="text-6xl font-black text-zinc-700 italic">VS</div>
-          
-          <div className="text-center">
-            <h2 className="text-3xl font-bold text-orange-300">{MOCK_PREDICTION.home_team}</h2>
-            <p className="text-zinc-500 font-bold mt-2">HOME</p>
-          </div>
-        </div>
-        
-
-        {/* Win Probability Bar */}
-        <div className="w-full bg-zinc-800 h-4 rounded-full overflow-hidden flex">
-          <div 
-            className="bg-orange-300 h-full transition-all duration-1000" 
-            style={{ width: `${MOCK_PREDICTION.win_prob * 100}%` }}
-          />
-        </div>
-        <p className="text-center mt-4 font-mono text-zinc-400">
-          WIN PROBABILITY: <span className="text-white font-bold">{(MOCK_PREDICTION.win_prob * 100).toFixed(0)}%</span>
-        </p>
-      </section>
+      <motion.div
+        key={currentIndex}
+        initial={{ opacity: 0, x: 20 }}
+        animate={{ opacity: 1, x: 0 }}
+        transition={{ duration: 0.5, ease: "easeOut" }}
+      >
+        <HoverBox>
+          <section className="max-w-5xl mx-auto bg-zinc-900 rounded-3xl p-16 border border-zinc-800 shadow-2xl">
+            <div className="flex justify-between items-center mb-12">
+              <button
+                onClick={goToPrevious}
+                className="text-zinc-400 hover:text-white text-4xl font-bold px-6 py-4 bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
+              >
+                ‹
+              </button>
+              <div className="text-center flex-1 px-6 flex flex-col items-center">
+                <h2 className="text-5xl font-bold">{currentPrediction.away_team}</h2>
+                <p className="text-zinc-500 font-bold mt-4 uppercase tracking-widest">AWAY</p>
+              </div>
+              <div className="text-center flex-1 px-6">
+                <div className="text-7xl font-black text-zinc-700 italic">VS</div>
+                <p className="text-orange-400 text-md font-bold mt-6 uppercase tracking-widest">{currentPrediction.game_time}</p>
+              </div>
+              <div className="text-center flex-1 px-6 flex flex-col items-center">
+                <h2 className="text-5xl font-bold text-orange-300">{currentPrediction.home_team}</h2>
+                <p className="text-zinc-500 font-bold mt-4 uppercase tracking-widest">HOME</p>
+              </div>
+              <button
+                onClick={goToNext}
+                className="text-zinc-400 hover:text-white text-4xl font-bold px-6 py-4 bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
+              >
+                ›
+              </button>
+            </div>
+            <div className="w-full bg-zinc-800 h-6 rounded-full overflow-hidden flex">
+              <div className="bg-orange-300 h-full transition-all duration-1000" style={{ width: `${currentPrediction.win_prob * 100}%` }} />
+            </div>
+            <p className="text-center mt-6 font-mono text-zinc-400 text-lg">
+              WIN PROBABILITY: <span className="text-white font-bold">{(currentPrediction.win_prob * 100).toFixed(0)}%</span>
+            </p>
+          </section>
         </HoverBox>
+      </motion.div>
 
-
-      {/* Featured Player Section */}
-      <section className="mt-12 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-4xl mx-auto">
-        <PlayerCard player={MOCK_PREDICTION.away_player} />
-        <PlayerCard player={MOCK_PREDICTION.home_player} />
+      <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
+        {currentPrediction.away_player && <PlayerCard player={currentPrediction.away_player} />}
+        {currentPrediction.home_player && <PlayerCard player={currentPrediction.home_player} />}
       </section>
     </main>
   );

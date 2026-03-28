@@ -5,7 +5,7 @@ from nba_api.stats.static import teams
 
 def get_upcoming_predictions():
     now = datetime.now()
-    #new season starts in October, so if it's July or later, we're in the next season
+    
     season = f"{now.year}-{str(now.year + 1)[2:]}" if now.month >= 7 else f"{now.year - 1}-{str(now.year)[2:]}" 
 
     nba_teams = teams.get_teams()
@@ -50,7 +50,7 @@ def get_upcoming_predictions():
     games_df[date_field] = pd.to_datetime(games_df[date_field], utc=True, errors='coerce')
     now_utc = pd.Timestamp.now(tz='UTC')
 
-    # Calculate end of today
+   
     end_of_day = now_utc.replace(hour=23, minute=59, second=59, microsecond=999999)
 
     upcoming = games_df[
@@ -60,12 +60,11 @@ def get_upcoming_predictions():
     ]
 
     predictions = []
-    for _, row in upcoming.iterrows():  # Remove .head(5) to get all this week
+    for _, row in upcoming.iterrows():  
         home_id = row.get(home_id_field)
         away_id = row.get(away_id_field)
         game_datetime = row.get(date_field)
         
-        # Format the game time for display
         if pd.notna(game_datetime):
             game_time_str = pd.Timestamp(game_datetime).strftime("%a, %b %d at %I:%M %p")
         else:

@@ -49,12 +49,13 @@ def get_upcoming_predictions():
 
     games_df['dt_naive'] = pd.to_datetime(games_df[date_field]).dt.tz_localize(None)
     games_df['game_local'] = games_df['dt_naive'].dt.tz_localize('US/Eastern').dt.tz_convert('US/Pacific')
-    now_pacific = pd.Timestamp.now(tz='US/Pacific').date()
+    now_pacific_date = pd.Timestamp.now(tz='US/Pacific').date()
+    now_pacific_time = pd.Timestamp.now(tz='US/Pacific')
     
-
     upcoming = games_df[
-    (games_df['game_local'].dt.date == now_pacific) & 
-    (games_df[status_field].astype(float) == 1)
+    (games_df['game_local'].dt.date == now_pacific_date) & 
+    (games_df[status_field].astype(float) == 1)&
+    (games_df['game_local'] > now_pacific_time)
     ].copy()
 
     predictions = []

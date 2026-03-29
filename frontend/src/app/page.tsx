@@ -111,7 +111,7 @@ export default function Dashboard() {
   }
 
   if (predictions.length === 0) {
-    return <main className="min-h-screen bg-black text-white p-8">No games today.</main>;
+    return <main className="min-h-screen bg-black text-white p-8">No games today. Come back tomorrow!</main>;
   }
 
   const currentPrediction = predictions[currentIndex];

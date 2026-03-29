@@ -47,26 +47,24 @@ def get_upcoming_predictions():
     home_id_field = 'homeTeam_teamId' if 'homeTeam_teamId' in games_df.columns else 'HOME_TEAM_ID'
     away_id_field = 'awayTeam_teamId' if 'awayTeam_teamId' in games_df.columns else 'VISITOR_TEAM_ID'
 
-    games_df[date_field] = pd.to_datetime(games_df[date_field], utc=True, errors='coerce')
-    now_utc = pd.Timestamp.now(tz='UTC')
-
-   
-    end_of_day = now_utc.replace(hour=23, minute=59, second=59, microsecond=999999)
+    games_df['dt_naive'] = pd.to_datetime(games_df[date_field]).dt.tz_localize(None)
+    games_df['game_local'] = games_df['dt_naive'].dt.tz_localize('US/Eastern').dt.tz_convert('US/Pacific')
+    now_pacific = pd.Timestamp.now(tz='US/Pacific').date()
+    
 
     upcoming = games_df[
-        (games_df.get(status_field, pd.Series([], dtype=int)).astype(float) == 1) &
-        (games_df[date_field] >= now_utc) &
-        (games_df[date_field] <= end_of_day)
-    ]
+    (games_df['game_local'].dt.date == now_pacific) & 
+    (games_df[status_field].astype(float) == 1)
+    ].copy()
 
     predictions = []
     for _, row in upcoming.iterrows():  
         home_id = row.get(home_id_field)
         away_id = row.get(away_id_field)
-        game_datetime = row.get(date_field)
+        game_datetime = row.get('game_local')
         
         if pd.notna(game_datetime):
-            game_time_str = pd.Timestamp(game_datetime).strftime("%a, %b %d at %I:%M %p")
+            game_time_str = row['game_local'].strftime("%a, %b %d at %I:%M %p PT")
         else:
             game_time_str = "Time TBD"
         

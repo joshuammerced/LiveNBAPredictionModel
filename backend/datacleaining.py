@@ -58,6 +58,13 @@ def get_upcoming_predictions():
     (games_df['game_local'] > now_pacific_time)
     ].copy()
 
+    if upcoming.empty:
+        tommorw_pacific_date = now_pacific_date + pd.Timedelta(days=1)
+        upcoming = games_df[
+            (games_df['game_local'].dt.date == tommorw_pacific_date) &
+            (games_df[status_field].astype(float) == 1)
+        ].copy()
+
     predictions = []
     for _, row in upcoming.iterrows():  
         home_id = row.get(home_id_field)

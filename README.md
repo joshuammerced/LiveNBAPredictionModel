@@ -16,3 +16,6 @@ The application is deployed using Google Cloud Run, making it scalable and acces
 ☁️ Cloud deployment using Google Cloud Run
 ⚡ Fast API responses for predictions
 🔄 Automated data processing pipeline
+
+
+Dataset: https://www.kaggle.com/datasets/sumitrodatta/nba-aba-baa-stats

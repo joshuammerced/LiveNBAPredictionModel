@@ -1,0 +1,55 @@
+services:
+  backend:
+    build:
+      context: ./
+      dockerfile: Dockerfile
+    container_name: nba-backend
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+    volumes:
+      - ./backend:/app/backend
+      - ./requirements.txt:/app/requirements.txt
+    develop:
+      watch:
+        - path: ./backend
+          action: sync
+        - path: ./requirements.txt
+          action: rebuild
+    networks:
+      - nba-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: nba-frontend
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=http://localhost:8000
+    volumes:
+      - ./frontend/src:/app/src
+      - ./frontend/public:/app/public
+    develop:
+      watch:
+        - path: ./frontend/src
+          action: sync
+        - path: ./frontend/public
+          action: sync
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - nba-network
+
+networks:
+  nba-network:
+    driver: bridge

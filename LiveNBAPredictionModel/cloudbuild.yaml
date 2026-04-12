@@ -1,0 +1,38 @@
+steps:
+  # Build backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/nba-backend:latest'
+      - '-f'
+      - 'Dockerfile'
+      - '.'
+
+  # Push backend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/nba-backend:latest'
+
+  # Build frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'gcr.io/$PROJECT_ID/nba-frontend:latest'
+      - '-f'
+      - 'frontend/Dockerfile'
+      - 'frontend'
+
+  # Push frontend image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'gcr.io/$PROJECT_ID/nba-frontend:latest'
+
+images:
+  - 'gcr.io/$PROJECT_ID/nba-backend:latest'
+  - 'gcr.io/$PROJECT_ID/nba-frontend:latest'
+
+timeout: '1800s'

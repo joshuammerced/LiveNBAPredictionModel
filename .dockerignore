@@ -30,3 +30,11 @@ htmlcov/
 .pytest_cache/
 
 output.json
+
+# Backend image only needs backend/ and run.py
+.git/
+frontend/
+frontend-old/
+k8s/
+**/__pycache__/
+backend/data/

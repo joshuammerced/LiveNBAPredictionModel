@@ -33,7 +33,7 @@ spec:
       - name: backend
         image: gcr.io/PROJECT_ID/nba-backend:latest
         ports:
-        - containerPort: 8000
+        - containerPort: 8080
           name: http
         resources:
           requests:
@@ -48,13 +48,13 @@ spec:
         livenessProbe:
           httpGet:
             path: /docs
-            port: 8000
+            port: 8080
           initialDelaySeconds: 30
           periodSeconds: 10
         readinessProbe:
           httpGet:
             path: /docs
-            port: 8000
+            port: 8080
           initialDelaySeconds: 5
           periodSeconds: 5
       securityContext:
@@ -72,7 +72,7 @@ spec:
   type: ClusterIP
   ports:
   - port: 8000
-    targetPort: 8000
+    targetPort: 8080
     protocol: TCP
     name: http
 ---
@@ -100,7 +100,7 @@ spec:
         - containerPort: 3000
           name: http
         env:
-        - name: NEXT_PUBLIC_API_URL
+        - name: BACKEND_URL
           value: "http://nba-backend:8000"
         resources:
           requests:
@@ -140,7 +140,7 @@ spec:
     protocol: TCP
     name: http
 ---
-apiVersion: autoscaling.k8s.io/v2
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: backend-hpa
@@ -160,7 +160,7 @@ spec:
         type: Utilization
         averageUtilization: 70
 ---
-apiVersion: autoscaling.k8s.io/v2
+apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: frontend-hpa

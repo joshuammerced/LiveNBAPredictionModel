@@ -33,4 +33,17 @@ python -m backend.train_model
 
 This writes `backend/model.json`, which the API loads to fill `win_prob`.
 
-Run the API locally: `uvicorn backend.main:app --reload`
+▶️ Running locally
+
+With Docker: `docker compose up --build`, then open http://localhost:3000
+
+Without Docker (two terminals):
+
+```
+uvicorn backend.main:app --reload        # API on http://localhost:8000
+cd frontend && npm install && npm run dev  # site on http://localhost:3000
+```
+
+The site calls its own `/api/predictions` route, which forwards to the backend at `BACKEND_URL`
+(default `http://localhost:8000`). On Cloud Run, set `BACKEND_URL` on the frontend service to the
+backend's URL; `deploy-cloud-run.sh` does this automatically.

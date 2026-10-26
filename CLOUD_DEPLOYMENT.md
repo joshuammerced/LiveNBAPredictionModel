@@ -35,7 +35,7 @@ gcloud run deploy nba-frontend \
     --region us-central1 \
     --memory 256Mi \
     --allow-unauthenticated \
-    --set-env-vars="NEXT_PUBLIC_API_URL=https://nba-backend-xxxxx.a.run.app"
+    --set-env-vars="BACKEND_URL=https://nba-backend-xxxxx.a.run.app"
 ```
 
 ### Option 2: GKE (Production-Grade)

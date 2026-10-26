@@ -34,7 +34,7 @@ gcloud services enable \
     cloudbuild.googleapis.com \
     container.googleapis.com \
     containerregistry.googleapis.com \
-    cloudrun.googleapis.com
+    run.googleapis.com
 
 # Create GKE cluster if it doesn't exist
 echo -e "${YELLOW}3. Creating GKE cluster (if not exists)...${NC}"

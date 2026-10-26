@@ -17,7 +17,7 @@ fi
 gcloud auth login
 gcloud config set project $PROJECT_ID
 
-gcloud services enable cloudbuild.googleapis.com cloudrun.googleapis.com
+gcloud services enable cloudbuild.googleapis.com run.googleapis.com
 
 echo "Building and deploying backend to Cloud Run..."
 gcloud run deploy nba-backend \
@@ -29,6 +29,9 @@ gcloud run deploy nba-backend \
     --allow-unauthenticated \
     --set-env-vars="PYTHONUNBUFFERED=1"
 
+BACKEND_URL=$(gcloud run services describe nba-backend --platform managed --region $REGION --format "value(status.url)")
+echo "Backend is at $BACKEND_URL"
+
 echo "Building and deploying frontend to Cloud Run..."
 gcloud run deploy nba-frontend \
     --source frontend \
@@ -37,7 +40,7 @@ gcloud run deploy nba-frontend \
     --memory 256Mi \
     --cpu 1 \
     --allow-unauthenticated \
-    --set-env-vars="NEXT_PUBLIC_API_URL=https://nba-backend-xxxxx.a.run.app"
+    --set-env-vars="BACKEND_URL=$BACKEND_URL"
 
 echo "Deployments complete!"
 gcloud run services list --platform managed --region $REGION

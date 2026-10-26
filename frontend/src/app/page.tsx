@@ -21,8 +21,6 @@ interface PredictionType {
   away_player: PlayerType | null;
 }
 
-const API_URL = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000';
-
 export function HoverBox({ children }: { children: React.ReactNode }) {
   return (
     <motion.div
@@ -77,7 +75,7 @@ export default function Dashboard() {
         setLoadingTime(Date.now() - startTime);
       }, 100);
       try {
-        const res = await fetch(`${API_URL}/predictions`);
+        const res = await fetch('/api/predictions');
         if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
         const data: PredictionType[] = await res.json();
         setPredictions(data);

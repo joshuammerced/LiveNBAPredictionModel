@@ -140,7 +140,7 @@ export GCP_REGION="us-central1"
 ```bash
 gcloud auth login
 gcloud config set project $GCP_PROJECT_ID
-gcloud services enable cloudbuild.googleapis.com cloudrun.googleapis.com
+gcloud services enable cloudbuild.googleapis.com run.googleapis.com
 ```
 
 ### Step 3: Deploy Backend to Cloud Run
@@ -157,7 +157,7 @@ gcloud run deploy nba-backend \
 This returns a URL like: `https://nba-backend-xxxxx.a.run.app`
 
 ### Step 4: Deploy Frontend to Cloud Run
-Update `NEXT_PUBLIC_API_URL` with the backend URL from Step 3:
+Update `BACKEND_URL` with the backend URL from Step 3:
 ```bash
 gcloud run deploy nba-frontend \
     --source frontend \
@@ -166,7 +166,7 @@ gcloud run deploy nba-frontend \
     --memory 256Mi \
     --cpu 1 \
     --allow-unauthenticated \
-    --set-env-vars="NEXT_PUBLIC_API_URL=https://nba-backend-xxxxx.a.run.app"
+    --set-env-vars="BACKEND_URL=https://nba-backend-xxxxx.a.run.app"
 ```
 
 ### Step 5: View Your Application

@@ -3,7 +3,7 @@
 Run these commands in Cloud Shell:
 
 ```bash
-# 1. Clone or navigate to your project
+# 1. Clone the repo (git clone https://github.com/joshuammerced/LiveNBAPredictionModel.git) and enter it
 cd LiveNBAPredictionModel
 
 # 2. Build backend image
@@ -35,7 +35,7 @@ gcloud run deploy nba-frontend \
   --region us-central1 \
   --memory 256Mi \
   --allow-unauthenticated \
-  --set-env-vars NEXT_PUBLIC_API_URL=https://nba-backend-xxxxx.a.run.app
+  --set-env-vars BACKEND_URL=https://nba-backend-xxxxx.a.run.app
 
 # 8. View your services
 gcloud run services list --platform managed --region us-central1
@@ -70,4 +70,4 @@ gcloud run services list --platform managed --region us-central1
 
 **Can't connect frontend to backend**
 - Frontend needs the full backend URL (https://..., not http://...)
-- Use `--set-env-vars NEXT_PUBLIC_API_URL=https://backend-url`
+- Use `--set-env-vars BACKEND_URL=https://backend-url`

@@ -25,7 +25,7 @@ call gcloud config set project %PROJECT_ID%
 
 REM Enable APIs
 echo 2. Enabling required APIs...
-call gcloud services enable cloudbuild.googleapis.com container.googleapis.com containerregistry.googleapis.com cloudrun.googleapis.com
+call gcloud services enable cloudbuild.googleapis.com container.googleapis.com containerregistry.googleapis.com run.googleapis.com
 
 REM Configure Docker
 echo 3. Configuring Docker for GCR...
@@ -75,7 +75,9 @@ if "%OPTION%"=="1" (
     
     REM Deploy frontend
     echo Deploying nba-frontend to Cloud Run...
-    call gcloud run deploy nba-frontend --source frontend --platform managed --region %REGION% --memory 256Mi --cpu 1 --allow-unauthenticated
+    for /f "delims=" %%U in ('gcloud run services describe nba-backend --platform managed --region %REGION% --format "value(status.url)"') do set BACKEND_URL=%%U
+    echo Backend is at !BACKEND_URL!
+    call gcloud run deploy nba-frontend --source frontend --platform managed --region %REGION% --memory 256Mi --cpu 1 --allow-unauthenticated --set-env-vars BACKEND_URL=!BACKEND_URL!
     
     echo.
     echo Deployment complete! View services:

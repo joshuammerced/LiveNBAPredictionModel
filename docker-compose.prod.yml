@@ -5,17 +5,17 @@ services:
       dockerfile: Dockerfile
     container_name: nba-backend
     ports:
-      - "8000:8000"
+      - "8000:8080"
     environment:
       - PYTHONUNBUFFERED=1
     networks:
       - nba-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/docs"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8080/docs')"]
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 20s
 
   frontend:
     build:
@@ -25,7 +25,7 @@ services:
     ports:
       - "3000:3000"
     environment:
-      - NEXT_PUBLIC_API_URL=http://nba-backend:8000
+      - BACKEND_URL=http://nba-backend:8080
     depends_on:
       backend:
         condition: service_healthy

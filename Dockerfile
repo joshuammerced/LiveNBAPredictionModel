@@ -1,8 +1,11 @@
 FROM python:3.10-slim
 WORKDIR /app
+ENV PYTHONUNBUFFERED=1
 COPY requirements.txt .
-RUN pip install -r requirements.txt
-COPY . .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY run.py .
+COPY backend ./backend
+# run.py listens on $PORT (Cloud Run sets it), defaulting to 8080.
+ENV PORT=8080
 EXPOSE 8080
-ENTRYPOINT ["python", "-m", "uvicorn"]
-CMD ["backend.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["python", "run.py"]

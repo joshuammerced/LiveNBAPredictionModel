@@ -15,6 +15,7 @@ def get_upcoming_predictions():
 
     nba_teams = teams.get_teams()
     team_lookup = {team['id']: team['full_name'] for team in nba_teams}
+    abbr_lookup = {team['id']: team['abbreviation'] for team in nba_teams}
 
     player_stats_call = leaguedashplayerstats.LeagueDashPlayerStats(season=season)
     all_players = player_stats_call.get_data_frames()[0]
@@ -92,6 +93,10 @@ def get_upcoming_predictions():
         prediction = {
             "home_team": team_lookup.get(home_id),
             "away_team": team_lookup.get(away_id),
+            "home_team_id": int(home_id),
+            "away_team_id": int(away_id),
+            "home_abbr": abbr_lookup.get(home_id),
+            "away_abbr": abbr_lookup.get(away_id),
             "game_time": game_time_str,
             "win_prob": win_prob,
             "home_player": get_star_data(home_id),

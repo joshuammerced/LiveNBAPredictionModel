@@ -57,10 +57,10 @@ def main():
     y_train, y_test = train["HOME_WIN"], test["HOME_WIN"]
 
     print("Held-out season results:")
-    evaluate("Home team always wins", y_test, np.full(len(test), y_train.mean()))
+    baseline_metrics = evaluate("Home team always wins", y_test, np.full(len(test), y_train.mean()))
 
     elo_only = make_model().fit(train[["ELO_DIFF"]], y_train)
-    evaluate("Elo only", y_test, elo_only.predict_proba(test[["ELO_DIFF"]])[:, 1])
+    elo_only_metrics = evaluate("Elo only", y_test, elo_only.predict_proba(test[["ELO_DIFF"]])[:, 1])
 
     model = make_model().fit(train[FEATURES], y_train)
     metrics = evaluate("Logistic regression", y_test, model.predict_proba(test[FEATURES])[:, 1])
@@ -83,6 +83,9 @@ def main():
         "trained_at": date.today().isoformat(),
         "test_season": season_string(test_season),
         "test_metrics": metrics,
+        "baseline_metrics": baseline_metrics,
+        "elo_only_metrics": elo_only_metrics,
+        "test_games": len(test),
     }
     with open(MODEL_PATH, "w") as f:
         json.dump(artifact, f, indent=2)

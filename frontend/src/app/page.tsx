@@ -1,175 +1,134 @@
-﻿"use client";
+﻿'use client';
 
-import React, { useEffect, useState } from 'react';
-import { motion } from 'framer-motion';
+import React, { useRef, useState } from 'react';
+import type { ModelInfo, Prediction, Team } from '@/lib/api';
+import { useBackend } from '@/lib/api';
+import { NBA_COLOR_PALETTE } from '@/lib/teams';
+import type { MatchupPair, Nav, PageId } from '@/components/nav';
+import { PageWipe, type Wipe } from '@/components/PageWipe';
+import { FrontPage } from '@/components/pages/FrontPage';
+import { RankingsPage } from '@/components/pages/RankingsPage';
+import { TeamPage } from '@/components/pages/TeamPage';
+import { MatchupLab } from '@/components/pages/MatchupLab';
 
-interface PlayerType {
-  team: string;
-  name: string;
-  pts_per_game: number;
-  ast_per_game: number;
-  reb_per_game: number;
-  efg: string;
+// The page swaps while the black wipe layer covers the screen.
+const SWAP_AT_MS = 740;
+const WIPE_DONE_MS = 1240;
+
+function randomColors(count: number) {
+  const pool = [...NBA_COLOR_PALETTE];
+  for (let i = pool.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [pool[i], pool[j]] = [pool[j], pool[i]];
+  }
+  return pool.slice(0, count);
 }
 
-interface PredictionType {
-  home_team: string;
-  away_team: string;
-  game_time: string;
-  win_prob: number;
-  home_player: PlayerType | null;
-  away_player: PlayerType | null;
-}
+export default function Home() {
+  const predictions = useBackend<Prediction[]>('predictions');
+  const teams = useBackend<Team[]>('teams');
+  const model = useBackend<ModelInfo>('model');
 
-export function HoverBox({ children }: { children: React.ReactNode }) {
-  return (
-    <motion.div
-      whileHover={{ scale: 1.05, borderColor: '#f97316' }}
-      className="transition-all"
-    >
-      {children}
-    </motion.div>
-  );
-}
+  const [page, setPage] = useState<PageId>('home');
+  const [teamId, setTeamId] = useState<number | null>(null);
+  const [pair, setPair] = useState<MatchupPair | null>(null);
+  const [wipe, setWipe] = useState<Wipe | null>(null);
+  const transitioning = useRef(false);
 
-function PlayerCard({ player }: { player: PlayerType }) {
-  return (
-    <HoverBox>
-      <div className="bg-zinc-900 border border-zinc-800 p-6 rounded-2xl">
-        <h3 className="text-zinc-500 uppercase text-xs font-black tracking-widest mb-4">{player.team}: MVP</h3>
-        <h4 className="text-2xl font-bold mb-4">{player.name}</h4>
-        <div className="grid grid-cols-4 gap-4 text-center">
-          <div>
-            <p className="text-zinc-500 text-xs">PTS</p>
-            <p className="text-xl font-bold">{player.pts_per_game.toFixed(1)}</p>
-          </div>
-          <div>
-            <p className="text-zinc-500 text-xs">AST</p>
-            <p className="text-xl font-bold">{player.ast_per_game.toFixed(1)}</p>
-          </div>
-          <div>
-            <p className="text-zinc-500 text-xs">REB</p>
-            <p className="text-xl font-bold">{player.reb_per_game.toFixed(1)}</p>
-          </div>
-          <div>
-            <p className="text-zinc-500 text-xs">eFG%</p>
-            <p className="text-xl font-bold text-green-400">{player.efg}</p>
-          </div>
-        </div>
-      </div>
-    </HoverBox>
-  );
-}
+  const ranked = teams.data ? [...teams.data].sort((a, b) => a.elo_rank - b.elo_rank) : [];
+  const currentTeamId = teamId ?? ranked[0]?.id ?? null;
+  const firstGame = predictions.data?.[0];
+  const currentPair: MatchupPair | null =
+    pair ??
+    (firstGame ? { homeId: firstGame.home_team_id, awayId: firstGame.away_team_id }
+      : ranked.length > 1 ? { homeId: ranked[0].id, awayId: ranked[1].id } : null);
+  const currentTeam = teams.data?.find((t) => t.id === currentTeamId);
 
-export default function Dashboard() {
-  const [predictions, setPredictions] = useState<PredictionType[]>([]);
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [loadingTime, setLoadingTime] = useState<number>(0);
+  const nav: Nav = {
+    goTo(target, opts = {}) {
+      const apply = () => {
+        if (opts.teamId !== undefined) setTeamId(opts.teamId);
+        if (opts.matchup) setPair(opts.matchup);
+        setPage(target);
+      };
 
-  useEffect(() => {
-    async function fetchPredictions() {
-      const startTime = Date.now();
-      const interval = setInterval(() => {
-        setLoadingTime(Date.now() - startTime);
-      }, 100);
-      try {
-        const res = await fetch('/api/predictions');
-        if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-        const data: PredictionType[] = await res.json();
-        setPredictions(data);
-        setIsLoading(false);
-        clearInterval(interval);
-        setLoadingTime(Date.now() - startTime);
-      } catch (err: any) {
-        setError(err.message);
-        setIsLoading(false);
-        clearInterval(interval);
+      // Switching team or matchup within the same page: the page's own fade handles it.
+      if (target === page) {
+        apply();
+        return;
       }
-    }
+      if (transitioning.current) return;
+      if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+        apply();
+        window.scrollTo({ top: 0 });
+        return;
+      }
 
-    fetchPredictions();
-  }, []);
+      const team = teams.data?.find((t) => t.id === (opts.teamId ?? currentTeamId));
+      const labels: Record<PageId, string> = {
+        home: 'NBA // FRONT PAGE',
+        rankings: 'NBA // POWER RANKINGS',
+        team: team ? `${team.abbr} // ${team.name.toUpperCase()}` : 'NBA // TEAM',
+        matchup: 'NBA // MATCHUP LAB',
+      };
 
-  const goToPrevious = () => {
-    setCurrentIndex((prev) => (prev === 0 ? predictions.length - 1 : prev - 1));
+      transitioning.current = true;
+      setWipe({ id: Date.now(), label: labels[target], colors: randomColors(4) });
+      setTimeout(() => {
+        apply();
+        window.scrollTo({ top: 0, behavior: 'instant' });
+      }, SWAP_AT_MS);
+      setTimeout(() => {
+        setWipe(null);
+        transitioning.current = false;
+      }, WIPE_DONE_MS);
+    },
   };
 
-  const goToNext = () => {
-    setCurrentIndex((prev) => (prev === predictions.length - 1 ? 0 : prev + 1));
-  };
-
-  if (error) {
-    return <main className="min-h-screen bg-black text-white p-8">Error: {error}</main>;
-  }
-
-  if (isLoading) {
-    return <main className="min-h-screen bg-black text-white p-8">Loading upcoming games... ({(loadingTime / 1000).toFixed(1)}s)</main>;
-  }
-
-  if (predictions.length === 0) {
-    return <main className="min-h-screen bg-black text-white p-8">No games today. Come back tomorrow!</main>;
-  }
-
-  const currentPrediction = predictions[currentIndex];
+  const tabs: { id: PageId; label: string }[] = [
+    { id: 'home', label: '01 // Front page' },
+    { id: 'rankings', label: '02 // Power rankings' },
+    { id: 'team', label: `03 // Team${currentTeam ? ` (${currentTeam.abbr})` : ''}` },
+    { id: 'matchup', label: '04 // Matchup lab' },
+  ];
 
   return (
-    <main className="min-h-screen bg-black text-white p-8 font-sans">
-      <header className="mb-12 border-b border-zinc-800 pb-6">
-        <h1 className="text-4xl font-black tracking-tighter italic">NBA PREDICT <span className="text-orange-300">v1.0</span></h1>
-        <p className="text-zinc-400 mt-2 uppercase tracking-widest text-xs font-bold">Machine Learning Game Insights</p>
-        <p className="text-zinc-500 mt-1 text-sm">Game {currentIndex + 1} of {predictions.length}</p>
+    <>
+      <PageWipe wipe={wipe} />
+      <div className="nba-top-ribbon" />
+
+      <header className="broadcast-navbar">
+        <div className="navbar-inner">
+          <button type="button" className="brand-lockup" onClick={() => nav.goTo('home')}>
+            <div className="nba-slash-logo"><span>NBA // LAB</span></div>
+            <div className="brand-text">
+              <h1>Live Prediction Lab</h1>
+              <p>Win probabilities · Elo · form · rest</p>
+            </div>
+          </button>
+          <nav className="nav-tabs" aria-label="Main">
+            {tabs.map((t) => (
+              <button key={t.id} type="button" className={`nav-tab-btn ${page === t.id ? 'active' : ''}`}
+                      aria-current={page === t.id ? 'page' : undefined} onClick={() => nav.goTo(t.id)}>
+                <span>{t.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
       </header>
 
-      <motion.div
-        key={currentIndex}
-        initial={{ opacity: 0, x: 20 }}
-        animate={{ opacity: 1, x: 0 }}
-        transition={{ duration: 0.5, ease: "easeOut" }}
-      >
-        <HoverBox>
-          <section className="max-w-5xl mx-auto bg-zinc-900 rounded-3xl p-16 border border-zinc-800 shadow-2xl">
-            <div className="flex justify-between items-center mb-12">
-              <button
-                onClick={goToPrevious}
-                className="text-zinc-400 hover:text-white text-4xl font-bold px-6 py-4 bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
-              >
-                ‹
-              </button>
-              <div className="text-center flex-1 px-6 flex flex-col items-center">
-                <h2 className="text-5xl font-bold">{currentPrediction.away_team}</h2>
-                <p className="text-zinc-500 font-bold mt-4 uppercase tracking-widest">AWAY</p>
-              </div>
-              <div className="text-center flex-1 px-6">
-                <div className="text-7xl font-black text-zinc-700 italic">VS</div>
-                <p className="text-orange-400 text-md font-bold mt-6 uppercase tracking-widest">{currentPrediction.game_time}</p>
-              </div>
-              <div className="text-center flex-1 px-6 flex flex-col items-center">
-                <h2 className="text-5xl font-bold text-orange-300">{currentPrediction.home_team}</h2>
-                <p className="text-zinc-500 font-bold mt-4 uppercase tracking-widest">HOME</p>
-              </div>
-              <button
-                onClick={goToNext}
-                className="text-zinc-400 hover:text-white text-4xl font-bold px-6 py-4 bg-zinc-800 rounded-lg transition-colors flex-shrink-0"
-              >
-                ›
-              </button>
-            </div>
-            <div className="w-full bg-zinc-800 h-6 rounded-full overflow-hidden flex">
-              <div className="bg-orange-300 h-full transition-all duration-1000" style={{ width: `${currentPrediction.win_prob * 100}%` }} />
-            </div>
-            <p className="text-center mt-6 font-mono text-zinc-400 text-lg">
-              WIN PROBABILITY: <span className="text-white font-bold">{(currentPrediction.win_prob * 100).toFixed(0)}%</span>
-            </p>
-          </section>
-        </HoverBox>
-      </motion.div>
+      <main className="page-container">
+        {page === 'home' && <FrontPage predictions={predictions} teams={teams} model={model} nav={nav} />}
+        {page === 'rankings' && <RankingsPage teams={teams} nav={nav} />}
+        {page === 'team' && <TeamPage teams={teams} teamId={currentTeamId} nav={nav} />}
+        {page === 'matchup' && <MatchupLab teams={teams} predictions={predictions} pair={currentPair} setPair={setPair} nav={nav} />}
+      </main>
 
-      <section className="mt-16 grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto">
-        {currentPrediction.away_player && <PlayerCard player={currentPrediction.away_player} />}
-        {currentPrediction.home_player && <PlayerCard player={currentPrediction.home_player} />}
-      </section>
-    </main>
+      <footer className="footer-citations">
+        Game logs, schedule and player stats from stats.nba.com via <a href="https://github.com/swar/nba_api" target="_blank" rel="noreferrer">nba_api</a>.
+        {model.data && <> Model trained on {model.data.trained_on} regular seasons, last updated {model.data.trained_at}.</>}
+        {' '}Predictions are probabilities, not guarantees.
+      </footer>
+    </>
   );
 }

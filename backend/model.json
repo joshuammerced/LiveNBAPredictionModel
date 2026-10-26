@@ -39,5 +39,16 @@
     "accuracy": 0.6873,
     "log_loss": 0.5957,
     "brier": 0.2047
-  }
+  },
+  "baseline_metrics": {
+    "accuracy": 0.5543,
+    "log_loss": 0.6875,
+    "brier": 0.2472
+  },
+  "elo_only_metrics": {
+    "accuracy": 0.6873,
+    "log_loss": 0.5966,
+    "brier": 0.2048
+  },
+  "test_games": 1225
 }

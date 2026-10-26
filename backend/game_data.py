@@ -6,6 +6,7 @@ import pandas as pd
 from nba_api.stats.endpoints import leaguegamelog
 
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "data")
+FETCH_ATTEMPTS = 3
 
 LOG_COLUMNS = [
     "SEASON_ID", "TEAM_ID", "GAME_ID", "GAME_DATE", "MATCHUP", "WL",
@@ -34,12 +35,20 @@ def fetch_season_logs(start_year, use_cache=True):
     if use_cache and not is_current and os.path.exists(cache_path):
         return pd.read_csv(cache_path, dtype={"GAME_ID": str})
 
-    df = leaguegamelog.LeagueGameLog(
-        season=season_string(start_year),
-        season_type_all_star="Regular Season",
-        player_or_team_abbreviation="T",
-        timeout=60,
-    ).get_data_frames()[0]
+    for attempt in range(FETCH_ATTEMPTS):
+        try:
+            df = leaguegamelog.LeagueGameLog(
+                season=season_string(start_year),
+                season_type_all_star="Regular Season",
+                player_or_team_abbreviation="T",
+                timeout=60,
+            ).get_data_frames()[0]
+            break
+        except Exception:
+            # stats.nba.com times out intermittently, especially from cloud IPs
+            if attempt == FETCH_ATTEMPTS - 1:
+                raise
+            time.sleep(5 * (attempt + 1))
     df = df[LOG_COLUMNS].copy()
 
     if use_cache and not is_current:

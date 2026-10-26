@@ -1,0 +1,60 @@
+name: Retrain model
+
+# Once a year, after the regular season ends. train_model.py treats a season as
+# "completed" from July 1, so a mid-July run picks up the season that just finished.
+# Can also be started by hand from the Actions tab ("Run workflow").
+on:
+  schedule:
+    - cron: "0 14 15 7 *"   # July 15, 14:00 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: retrain-model
+  cancel-in-progress: false
+
+jobs:
+  retrain:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Train
+        run: python -m backend.train_model
+
+      - name: Sanity-check the new model
+        # Refuse to commit a model that's worse than picking the home team or clearly broken
+        # (e.g. trained on a partial download).
+        run: |
+          python - <<'EOF'
+          import json, sys
+          m = json.load(open("backend/model.json"))
+          acc, base = m["test_metrics"]["accuracy"], m["baseline_metrics"]["accuracy"]
+          print(f"test season {m['test_season']}: accuracy {acc:.3f}, home-team baseline {base:.3f}, games {m['test_games']}")
+          if acc < 0.62 or acc <= base or m["test_games"] < 1000:
+              sys.exit("New model failed the sanity check; not committing it.")
+          EOF
+
+      - name: Commit and push if the model changed
+        run: |
+          if git diff --quiet -- backend/model.json; then
+            echo "model.json unchanged; nothing to commit."
+            exit 0
+          fi
+          season=$(python -c "import json; print(json.load(open('backend/model.json'))['test_season'])")
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add backend/model.json
+          git commit -m "Retrain model through the ${season} season"
+          git push

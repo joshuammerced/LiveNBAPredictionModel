@@ -20,12 +20,11 @@ RUN addgroup -g 1001 nextjs && adduser -D -u 1001 -G nextjs nextjs
 # output: "standalone" (next.config.ts) bundles the server and only the node_modules it needs.
 COPY --from=builder --chown=nextjs:nextjs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nextjs /app/.next/static ./.next/static
-COPY --from=builder --chown=nextjs:nextjs /app/public ./public
 
 USER nextjs
 
 # Listens on $PORT: 3000 by default, Cloud Run overrides it with 8080.
-# Set BACKEND_URL at runtime to point /api/predictions at the backend.
+# Set BACKEND_URL at runtime to point /api/* at the backend.
 EXPOSE 3000
 
 CMD ["node", "server.js"]

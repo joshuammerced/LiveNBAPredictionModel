@@ -6,10 +6,10 @@ from fastapi.middleware.cors import CORSMiddleware
 # Docker/Cloud Run start the app as backend.main from the repo root;
 # running `uvicorn main:app` inside backend/ also works.
 try:
-    from backend.datacleaining import get_upcoming_predictions
+    from backend.schedule import get_upcoming_predictions
     from backend.predictor import league_snapshot, load_model, predict_matchup
 except ImportError:
-    from datacleaining import get_upcoming_predictions
+    from schedule import get_upcoming_predictions
     from predictor import league_snapshot, load_model, predict_matchup
 
 app = FastAPI()

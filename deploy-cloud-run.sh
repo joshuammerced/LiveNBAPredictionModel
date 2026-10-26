@@ -1,7 +1,7 @@
 #!/bin/bash
 
-# Alternative: Deploy backend to Cloud Run only (simpler, serverless)
-# This is useful if you want auto-scaling without managing a Kubernetes cluster
+# Deploy backend and frontend to Google Cloud Run (Windows: deploy.bat).
+# Builds each service from source; the frontend is pointed at the backend's URL.
 
 set -e
 

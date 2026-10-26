@@ -1,5 +1,5 @@
 // Proxies the backend so the browser only ever talks to this app (no CORS, and BACKEND_URL
-// is read at request time, so the same image works locally, in docker-compose, k8s and Cloud Run).
+// is read at request time, so the same image works locally, in docker-compose and on Cloud Run).
 const BACKEND_URL = process.env.BACKEND_URL || 'http://localhost:8000';
 const ALLOWED = new Set(['predictions', 'teams', 'matchup', 'model']);
 

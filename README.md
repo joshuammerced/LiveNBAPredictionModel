@@ -1,37 +1,45 @@
 # LiveNBAPredictionModel
 
-🏀 NBA Game Outcome Predictor (AI)
+🏀 NBA Game Outcome Predictor
 
-An AI-powered system that predicts NBA game outcomes and players' stats using real-time data from the NBA API, deployed on Google Cloud Run.
-
-🚀 Overview
-
-This project uses machine learning to predict NBA game outcomes and players' stats using historical and real-time data. It fetches game statistics from the NBA API, processes the data, and applies a trained model to generate predictions.
-
-The application is deployed using Google Cloud Run, making it scalable and accessible via API endpoints.
+Win probabilities for every upcoming NBA game from a model trained on a decade of game logs,
+with live data from the NBA API, deployed on Google Cloud Run.
 
 🧠 Features
-📊 Real-time NBA data ingestion via NBA API
-🤖 AI/ML model for game outcome prediction
-☁️ Cloud deployment using Google Cloud Run
-⚡ Fast API responses for predictions
-🔄 Automated data processing pipeline
-
+📊 Live data from stats.nba.com via `nba_api`
+🤖 Home-team win probability for every upcoming game, with a per-factor explanation
+🏆 Power rankings, team pages and a matchup lab for any two teams
+☁️ Deployed on Google Cloud Run
+🔄 Model retrained automatically once a year (GitHub Actions)
 
 📈 Model
 
-Home-team win probability from a logistic regression on pre-game features: Elo rating difference,
-rolling net rating (last 10 and 30 games), rest days and back-to-backs. Data is regular-season game
-logs from `nba_api` (`leaguegamelog`), one call per season.
+A logistic regression on pre-game features: Elo rating difference, rolling net rating (last 10
+and 30 games), rest days and back-to-backs. Trained on regular-season game logs from `nba_api`
+(`leaguegamelog`); evaluated on the most recent completed season, which it never trained on.
 
-Retrain (from the repo root):
+The trained model is `backend/model.json`. Retrain (from the repo root):
 
 ```
 pip install -r requirements.txt
 python -m backend.train_model
 ```
 
-This writes `backend/model.json`, which the API loads to fill `win_prob`.
+📁 Where things live
+
+| Path | What it is |
+|---|---|
+| `backend/model.json` | The trained model: learned weights plus held-out test scores |
+| `backend/train_model.py` | Trains and evaluates the model, writes `model.json` |
+| `backend/features.py` | Pre-game features: Elo, rolling net rating, rest |
+| `backend/game_data.py` | Downloads and caches game logs |
+| `backend/predictor.py` | Scores games with `model.json`; team snapshots for the site |
+| `backend/schedule.py` | Upcoming games and each team's top scorer |
+| `backend/main.py` | FastAPI app: `/predictions`, `/teams`, `/matchup`, `/model` |
+| `frontend/` | Next.js site |
+| `Dockerfile`, `frontend/Dockerfile` | Container images for the backend and frontend |
+| `deploy-cloud-run.sh`, `deploy.bat`, `cloudbuild.yaml` | Google Cloud Run deployment (see [DEPLOYMENT.md](DEPLOYMENT.md)) |
+| `.github/workflows/retrain-model.yml` | Yearly automatic retraining |
 
 ▶️ Running locally
 
@@ -40,10 +48,11 @@ With Docker: `docker compose up --build`, then open http://localhost:3000
 Without Docker (two terminals):
 
 ```
-uvicorn backend.main:app --reload        # API on http://localhost:8000
+uvicorn backend.main:app --reload          # API on http://localhost:8000
 cd frontend && npm install && npm run dev  # site on http://localhost:3000
 ```
 
-The site calls its own `/api/predictions` route, which forwards to the backend at `BACKEND_URL`
-(default `http://localhost:8000`). On Cloud Run, set `BACKEND_URL` on the frontend service to the
-backend's URL; `deploy-cloud-run.sh` does this automatically.
+The site calls its own `/api/*` routes, which forward to the backend at `BACKEND_URL`
+(default `http://localhost:8000`).
+
+☁️ Deploying: see [DEPLOYMENT.md](DEPLOYMENT.md).

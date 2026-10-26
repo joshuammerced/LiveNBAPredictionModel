@@ -1,17 +1,23 @@
+import os
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
-from datacleaining import get_upcoming_predictions
 
-#Sean's code 
-# from data.nba_api_client import NBAScraper
-# from processing.features import calculate_rest_days
+# Docker/Cloud Run start the app as backend.main from the repo root;
+# running `uvicorn main:app` inside backend/ also works.
+try:
+    from backend.datacleaining import get_upcoming_predictions
+except ImportError:
+    from datacleaining import get_upcoming_predictions
 
 app = FastAPI()
 
+# Comma-separated list, e.g. set ALLOWED_ORIGINS to the deployed frontend URL on Cloud Run.
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000,http://127.0.0.1:3000").split(",")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://127.0.0.1:3000"],
+    allow_origins=allowed_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -20,26 +26,3 @@ app.add_middleware(
 @app.get("/predictions")
 def predictions():
     return get_upcoming_predictions()
-
-#Sean's code
-# def main():
-#     team_id = '1610612747'  # Lakers (nba_api uses strings for IDs)
-    
-#     # Initialize the scraper class
-#     scraper = NBAScraper()
-    
-#     # Call the correct method name
-#     df = scraper.safe_get_games(team_id)
-    
-#     if df is not None:
-#         # Use the correct function name from your features.py
-#         df = calculate_rest_days(df)
-#         print(df[['GAME_DATE', 'MATCHUP', 'days_since_last_game']].head())
-
-# if __name__ == "__main__":
-#     main()
-
-
-
-
-

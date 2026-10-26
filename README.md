@@ -18,4 +18,19 @@ The application is deployed using Google Cloud Run, making it scalable and acces
 🔄 Automated data processing pipeline
 
 
-Dataset: https://www.kaggle.com/datasets/sumitrodatta/nba-aba-baa-stats
+📈 Model
+
+Home-team win probability from a logistic regression on pre-game features: Elo rating difference,
+rolling net rating (last 10 and 30 games), rest days and back-to-backs. Data is regular-season game
+logs from `nba_api` (`leaguegamelog`), one call per season.
+
+Retrain (from the repo root):
+
+```
+pip install -r requirements.txt
+python -m backend.train_model
+```
+
+This writes `backend/model.json`, which the API loads to fill `win_prob`.
+
+Run the API locally: `uvicorn backend.main:app --reload`

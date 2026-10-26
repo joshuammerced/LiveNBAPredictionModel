@@ -3,6 +3,11 @@ from datetime import datetime
 from nba_api.stats.endpoints import scheduleleaguev2, leaguedashplayerstats
 from nba_api.stats.static import teams
 
+try:
+    from backend.predictor import predict_home_win_probs
+except ImportError:
+    from predictor import predict_home_win_probs
+
 def get_upcoming_predictions():
     now = datetime.now()
     
@@ -65,8 +70,16 @@ def get_upcoming_predictions():
             (games_df[status_field].astype(float) == 1)
         ].copy()
 
+    try:
+        win_probs = predict_home_win_probs(list(zip(
+            upcoming[home_id_field], upcoming[away_id_field], upcoming['dt_naive']
+        )))
+    except Exception as e:
+        print(f"Model prediction failed, falling back to 50/50: {e}")
+        win_probs = [0.50] * len(upcoming)
+
     predictions = []
-    for _, row in upcoming.iterrows():  
+    for (_, row), win_prob in zip(upcoming.iterrows(), win_probs):
         home_id = row.get(home_id_field)
         away_id = row.get(away_id_field)
         game_datetime = row.get('game_local')
@@ -80,7 +93,7 @@ def get_upcoming_predictions():
             "home_team": team_lookup.get(home_id),
             "away_team": team_lookup.get(away_id),
             "game_time": game_time_str,
-            "win_prob": 0.50, 
+            "win_prob": win_prob,
             "home_player": get_star_data(home_id),
             "away_player": get_star_data(away_id)
         }

@@ -31,7 +31,8 @@ steps:
       - 'push'
       - 'gcr.io/$PROJECT_ID/nba-frontend:latest'
 
-  # Deploy backend to Cloud Run
+  # Deploy backend to Cloud Run (private: only the frontend's service account can invoke it,
+  # granted once by deploy-cloud-run.sh)
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
@@ -40,10 +41,10 @@ steps:
       - 'nba-backend'
       - '--image=gcr.io/$PROJECT_ID/nba-backend:latest'
       - '--region=$_REGION'
-      - '--memory=512Mi'
-      - '--allow-unauthenticated'
+      - '--memory=1Gi'
+      - '--no-allow-unauthenticated'
 
-  # Deploy frontend to Cloud Run, pointed at the backend's URL
+  # Deploy frontend to Cloud Run (public), pointed at the backend's URL
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
@@ -53,7 +54,8 @@ steps:
         gcloud run deploy nba-frontend \
           --image=gcr.io/$PROJECT_ID/nba-frontend:latest \
           --region=$_REGION \
-          --memory=256Mi \
+          --memory=512Mi \
+          --service-account=nba-frontend@$PROJECT_ID.iam.gserviceaccount.com \
           --allow-unauthenticated \
           --set-env-vars=BACKEND_URL=$$BACKEND_URL
 

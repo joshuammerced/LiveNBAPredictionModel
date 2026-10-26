@@ -1,12 +1,14 @@
 #!/bin/bash
 
 # Deploy backend and frontend to Google Cloud Run (Windows: deploy.bat).
-# Builds each service from source; the frontend is pointed at the backend's URL.
+# The backend is private: only the frontend's service account may call it.
+# The frontend is public and attaches an identity token to each backend request.
 
 set -e
 
 PROJECT_ID="${GCP_PROJECT_ID}"
 REGION="us-central1"
+FRONTEND_SA="nba-frontend@${PROJECT_ID}.iam.gserviceaccount.com"
 
 if [ -z "$PROJECT_ID" ]; then
     echo "Error: GCP_PROJECT_ID environment variable not set"
@@ -14,33 +16,46 @@ if [ -z "$PROJECT_ID" ]; then
     exit 1
 fi
 
-gcloud auth login
-gcloud config set project $PROJECT_ID
+if [ -z "$(gcloud auth list --filter=status:ACTIVE --format='value(account)')" ]; then
+    gcloud auth login
+fi
+gcloud config set project "$PROJECT_ID"
 
-gcloud services enable cloudbuild.googleapis.com run.googleapis.com
+gcloud services enable cloudbuild.googleapis.com run.googleapis.com artifactregistry.googleapis.com
 
-echo "Building and deploying backend to Cloud Run..."
+if ! gcloud iam service-accounts describe "$FRONTEND_SA" >/dev/null 2>&1; then
+    gcloud iam service-accounts create nba-frontend --display-name="NBA frontend (calls the private backend)"
+fi
+
+echo "Building and deploying backend (private)..."
 gcloud run deploy nba-backend \
     --source . \
-    --platform managed \
+    --region $REGION \
+    --memory 1Gi \
+    --cpu 1 \
+    --no-allow-unauthenticated \
+    --set-env-vars="PYTHONUNBUFFERED=1" \
+    --quiet
+
+gcloud run services add-iam-policy-binding nba-backend \
+    --region $REGION \
+    --member="serviceAccount:$FRONTEND_SA" \
+    --role="roles/run.invoker" \
+    --quiet >/dev/null
+
+BACKEND_URL=$(gcloud run services describe nba-backend --region $REGION --format "value(status.url)")
+echo "Backend is at $BACKEND_URL (private)"
+
+echo "Building and deploying frontend (public)..."
+gcloud run deploy nba-frontend \
+    --source frontend \
     --region $REGION \
     --memory 512Mi \
     --cpu 1 \
+    --service-account "$FRONTEND_SA" \
     --allow-unauthenticated \
-    --set-env-vars="PYTHONUNBUFFERED=1"
-
-BACKEND_URL=$(gcloud run services describe nba-backend --platform managed --region $REGION --format "value(status.url)")
-echo "Backend is at $BACKEND_URL"
-
-echo "Building and deploying frontend to Cloud Run..."
-gcloud run deploy nba-frontend \
-    --source frontend \
-    --platform managed \
-    --region $REGION \
-    --memory 256Mi \
-    --cpu 1 \
-    --allow-unauthenticated \
-    --set-env-vars="BACKEND_URL=$BACKEND_URL"
+    --set-env-vars="BACKEND_URL=$BACKEND_URL" \
+    --quiet
 
 echo "Deployments complete!"
-gcloud run services list --platform managed --region $REGION
+gcloud run services describe nba-frontend --region $REGION --format "value(status.url)"

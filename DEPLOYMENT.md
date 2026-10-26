@@ -9,6 +9,12 @@ The app runs on **Google Cloud Run** as two services built from this repo:
 
 Both containers listen on `$PORT`, which Cloud Run sets automatically.
 
+**Only the frontend is public.** The backend is deployed with `--no-allow-unauthenticated`, so
+Cloud Run rejects any request without a valid Google identity token. The frontend runs as the
+`nba-frontend` service account, which is the only account granted `roles/run.invoker` on the
+backend; its `/api/*` route fetches an identity token from the Cloud Run metadata server and
+attaches it to each backend request. Locally (no `K_SERVICE` env var) no token is sent.
+
 ## Deploy by hand
 
 Needs the [gcloud CLI](https://cloud.google.com/sdk/docs/install).
@@ -20,8 +26,9 @@ export GCP_PROJECT_ID=your-project-id
 
 On Windows (cmd): `set GCP_PROJECT_ID=your-project-id && deploy.bat`
 
-The script deploys the backend first, looks up its URL, and deploys the frontend with
-`BACKEND_URL` set to it. Re-run it any time to ship a new version.
+The script creates the `nba-frontend` service account (first run only), deploys the private
+backend, grants the frontend permission to call it, then deploys the public frontend with
+`BACKEND_URL` set to the backend's URL. Re-run it any time to ship a new version.
 
 ## Deploy automatically on every push (optional)
 

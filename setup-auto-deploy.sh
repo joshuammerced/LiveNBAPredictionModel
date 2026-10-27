@@ -37,6 +37,11 @@ for sa in "$BACKEND_SA" "$FRONTEND_SA"; do
         --role=roles/iam.serviceAccountUser --quiet >/dev/null
 done
 
+# Cloud Build stores the GitHub token in Secret Manager, so its service agent needs to create secrets.
+gcloud projects add-iam-policy-binding "$PROJECT_ID" \
+    --member="serviceAccount:service-${PROJECT_NUMBER}@gcp-sa-cloudbuild.iam.gserviceaccount.com" \
+    --role=roles/secretmanager.admin --condition=None --quiet >/dev/null
+
 echo "2/4 Connecting GitHub (opens an authorization link)..."
 if ! gcloud builds connections describe "$CONNECTION" --region="$REGION" >/dev/null 2>&1; then
     gcloud builds connections create github "$CONNECTION" --region="$REGION"

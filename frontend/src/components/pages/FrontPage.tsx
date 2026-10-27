@@ -58,6 +58,8 @@ function GameCard({ game, nav }: { game: Prediction; nav: Nav }) {
         <span className="pick-label">Pick: {fav.abbr}</span>
       </div>
 
+      {game.stage && <div className="stage-tag tilt-layer-mid">{game.stage}</div>}
+
       <div className="score-rows tilt-layer-deep">
         <ScoreRow abbr={game.away_abbr} name={game.away_team} role="Away" prob={1 - game.win_prob} isFav={fav.abbr === game.away_abbr} />
         <ScoreRow abbr={game.home_abbr} name={game.home_team} role="Home" prob={game.win_prob} isFav={fav.abbr === game.home_abbr} />
@@ -92,7 +94,7 @@ function ClosestCall({ games, nav }: { games: Prediction[]; nav: Nav }) {
       onClick={() => nav.goTo('matchup', { matchup: { homeId: game.home_team_id, awayId: game.away_team_id } })}
     >
       <div className="spotlight-header tilt-layer-mid">
-        <RectTag color={teamStyle(fav.abbr).color}>Closest call on the slate</RectTag>
+        <RectTag color={teamStyle(fav.abbr).color}>{games.length > 1 ? 'Closest call on the slate' : 'Next game'}</RectTag>
         <span className="spotlight-time">{game.game_time.split(' at ')[1]}</span>
       </div>
       <div className="spotlight-body tilt-layer-deep">
@@ -100,7 +102,9 @@ function ClosestCall({ games, nav }: { games: Prediction[]; nav: Nav }) {
         <div>
           <h3 className="spotlight-title">{game.away_abbr} @ {game.home_abbr}</h3>
           <p className="spotlight-sub">{game.away_team} at {game.home_team}</p>
-          <p className="spotlight-note">The model sees this as the tightest game of the slate.</p>
+          <p className="spotlight-note">
+            {games.length > 1 ? 'The model sees this as the tightest game of the slate.' : `The model makes ${fav.abbr} a ${(fav.prob * 100).toFixed(0)}% favorite.`}
+          </p>
         </div>
       </div>
     </TiltCard>
@@ -130,6 +134,16 @@ function KpiStrip({ teams, model, nav }: { teams: Team[] | null; model: ModelInf
           {model ? <>Always picking the home team: {(model.baseline_metrics.accuracy * 100).toFixed(1)}%</> : 'Loading…'}
         </div>
       </TiltCard>
+
+      {model?.playoff_metrics && (
+        <TiltCard className="kpi-box" style={{ '--team-color': '#552583' } as React.CSSProperties}>
+          <div className="kpi-top-tag tilt-layer-mid"><span>Playoff accuracy</span><span className="kpi-rect-pill">Play-in + playoffs</span></div>
+          <div className="kpi-big-num tilt-layer-deep"><CountUp value={model.playoff_metrics.accuracy * 100} suffix="%" /></div>
+          <div className="kpi-foot tilt-layer-mid">
+            {model.playoff_metrics.games} postseason games, last 5 seasons (closer matchups, so lower than the regular season)
+          </div>
+        </TiltCard>
+      )}
 
       {topElo ? (
         <TiltCard className="kpi-box" style={teamVars(topElo.abbr)} label={`Open ${topElo.name}`} onClick={() => nav.goTo('team', { teamId: topElo.id })}>
@@ -176,8 +190,8 @@ export function FrontPage({ predictions, teams, model, nav }: {
         </div>
       </div>
 
-      <Divider title={<>Upcoming slate{games && games.length > 0 && <> · {slateDate(games)}</>}</>}
-               sub={games ? `${games.length} games · home win probability` : 'Loading…'} />
+      <Divider title={<>{games?.some((g) => g.season_type === 'Playoffs') ? 'Playoff slate' : games?.some((g) => g.season_type === 'PlayIn') ? 'Play-in slate' : 'Upcoming slate'}{games && games.length > 0 && <> · {slateDate(games)}</>}</>}
+               sub={games ? `${games.length} game${games.length === 1 ? '' : 's'} · home win probability` : 'Loading…'} />
       {predictions.error && <ErrorPanel message={predictions.error} />}
       {!games && !predictions.error && <LoadingPanel label="Scoring tonight's games… (first load takes a few seconds)" />}
       {games && games.length === 0 && <div className="empty-panel">No games on the schedule today or tomorrow. Check back soon.</div>}
@@ -214,6 +228,14 @@ export function FrontPage({ predictions, teams, model, nav }: {
             <p>Pick any two teams and get the model&apos;s prediction, with a breakdown of what drives it.</p>
           </div>
           <div className="portal-go tilt-layer-mid"><span>Build a matchup</span><span>►</span></div>
+        </TiltCard>
+        <TiltCard className="portal-card" style={teamVars('LAL')} label="Open Parlay Lab" onClick={() => nav.goTo('parlay')}>
+          <div className="tilt-layer-deep">
+            <div className="portal-num"><span>Page 05 // Parlay Lab</span></div>
+            <h3>Parlay Lab</h3>
+            <p>Build a pick&apos;em or sportsbook slip and see each leg&apos;s odds, the chance it all hits, and the expected value.</p>
+          </div>
+          <div className="portal-go tilt-layer-mid"><span>Check a parlay</span><span>►</span></div>
         </TiltCard>
       </div>
     </section>

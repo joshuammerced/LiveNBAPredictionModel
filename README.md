@@ -9,6 +9,8 @@ updated live from ESPN's public API, deployed on Google Cloud Run.
 📊 Live scores, schedule and player stats from ESPN's public API
 🤖 Home-team win probability for every upcoming game, with a per-factor explanation
 🏆 Power rankings, team pages and a matchup lab for any two teams
+🏀 Regular season, play-in and playoffs
+🎟️ Parlay Lab: model odds for pick'em (PrizePicks-style) and sportsbook (DraftKings-style) slips
 ☁️ Deployed on Google Cloud Run
 🔄 Model retrained automatically once a year (GitHub Actions)
 
@@ -17,7 +19,12 @@ updated live from ESPN's public API, deployed on Google Cloud Run.
 A logistic regression on pre-game features: Elo rating difference, average point margin (last 10
 and 30 games), rest days and back-to-backs. Trained on regular-season game logs since 2014-15
 (snapshots in `backend/history/`, pulled from `nba_api`); evaluated on the most recent completed
-season, which it never trained on.
+season, which it never trained on. Playoff and play-in games update Elo and form; the model is
+trained on the regular season and backtested separately on the last five postseasons.
+
+Spreads and totals for parlays come from the same model (margin) plus each team's recent scoring
+(total), and player props from a recency-weighted distribution of the player's last ~10 games. All
+three are calibration-checked on a held-out season. They don't see injuries, lineups or minutes.
 
 The trained model is `backend/model.json`. Retrain (from the repo root):
 
@@ -38,10 +45,13 @@ python -m backend.train_model
 | `backend/espn.py` | Live data from ESPN: current-season results, upcoming games, top scorers |
 | `backend/predictor.py` | Scores games with `model.json`; team snapshots for the site |
 | `backend/schedule.py` | Upcoming games and each team's top scorer |
-| `backend/main.py` | FastAPI app: `/predictions`, `/teams`, `/matchup`, `/model` |
+| `backend/props.py`, `backend/props_model.json` | Player-prop probabilities (over/under a line) from recent games |
+| `backend/train_props.py` | Fits and backtests the prop model (run locally, once a season) |
+| `backend/parlay.py` | Parlay math: per-leg odds, chance all legs hit, expected value |
+| `backend/main.py` | FastAPI app: `/predictions`, `/teams`, `/matchup`, `/model`, `/players`, `/prop`, `/parlay` |
 | `frontend/` | Next.js site |
 | `Dockerfile`, `frontend/Dockerfile` | Container images for the backend and frontend |
-| `deploy-cloud-run.sh`, `deploy.bat`, `cloudbuild.yaml` | Google Cloud Run deployment (see [DEPLOYMENT.md](DEPLOYMENT.md)) |
+| `deploy-cloud-run.sh`, `deploy.bat`, `cloudbuild.yaml`, `setup-auto-deploy.sh` | Google Cloud Run deployment (see [DEPLOYMENT.md](DEPLOYMENT.md)) |
 | `.github/workflows/retrain-model.yml` | Yearly automatic retraining |
 
 ▶️ Running locally

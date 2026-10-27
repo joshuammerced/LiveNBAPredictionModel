@@ -10,6 +10,7 @@ import { FrontPage } from '@/components/pages/FrontPage';
 import { RankingsPage } from '@/components/pages/RankingsPage';
 import { TeamPage } from '@/components/pages/TeamPage';
 import { MatchupLab } from '@/components/pages/MatchupLab';
+import { ParlayLab } from '@/components/pages/ParlayLab';
 
 // The page swaps while the black wipe layer covers the screen.
 const SWAP_AT_MS = 740;
@@ -70,6 +71,7 @@ export default function Home() {
         rankings: 'NBA // POWER RANKINGS',
         team: team ? `${team.abbr} // ${team.name.toUpperCase()}` : 'NBA // TEAM',
         matchup: 'NBA // MATCHUP LAB',
+        parlay: 'NBA // PARLAY LAB',
       };
 
       transitioning.current = true;
@@ -90,6 +92,7 @@ export default function Home() {
     { id: 'rankings', label: '02 // Power rankings' },
     { id: 'team', label: `03 // Team${currentTeam ? ` (${currentTeam.abbr})` : ''}` },
     { id: 'matchup', label: '04 // Matchup lab' },
+    { id: 'parlay', label: '05 // Parlay lab' },
   ];
 
   return (
@@ -122,6 +125,7 @@ export default function Home() {
         {page === 'rankings' && <RankingsPage teams={teams} nav={nav} />}
         {page === 'team' && <TeamPage teams={teams} teamId={currentTeamId} nav={nav} />}
         {page === 'matchup' && <MatchupLab teams={teams} predictions={predictions} pair={currentPair} setPair={setPair} nav={nav} />}
+        {page === 'parlay' && <ParlayLab teams={teams} predictions={predictions} nav={nav} />}
       </main>
 
       <footer className="footer-citations">

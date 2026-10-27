@@ -61,7 +61,8 @@ def add_rolling_team_stats(games, team_logs):
     Point margin needs only final scores, so live data can come from any scores feed. (It tracks
     possession-adjusted net rating at r = 0.999 and gives the same held-out accuracy.)
     """
-    stats = team_logs[["GAME_ID", "TEAM_ID", "PLUS_MINUS"]].rename(columns={"PLUS_MINUS": "MARGIN"})
+    stats = team_logs[["GAME_ID", "TEAM_ID", "PLUS_MINUS", "PTS"]].rename(columns={"PLUS_MINUS": "MARGIN"})
+    stats["OPP_PTS"] = stats["PTS"] - stats["MARGIN"]
 
     long = pd.concat([
         games[["GAME_ID", "GAME_DATE", "HOME_TEAM_ID"]].rename(columns={"HOME_TEAM_ID": "TEAM_ID"}),
@@ -72,9 +73,12 @@ def add_rolling_team_stats(games, team_logs):
     by_team = long.groupby("TEAM_ID")
     long["MARGIN_10"] = by_team["MARGIN"].transform(lambda s: s.shift(1).rolling(10, min_periods=3).mean())
     long["MARGIN_30"] = by_team["MARGIN"].transform(lambda s: s.shift(1).rolling(30, min_periods=5).mean())
+    # Points scored / allowed, for the game-total model (not a win-probability feature)
+    long["PF_20"] = by_team["PTS"].transform(lambda s: s.shift(1).rolling(20, min_periods=5).mean())
+    long["PA_20"] = by_team["OPP_PTS"].transform(lambda s: s.shift(1).rolling(20, min_periods=5).mean())
     long["REST_DAYS"] = by_team["GAME_DATE"].diff().dt.days.clip(upper=4).fillna(4)
 
-    team_cols = ["GAME_ID", "TEAM_ID", "MARGIN_10", "MARGIN_30", "REST_DAYS"]
+    team_cols = ["GAME_ID", "TEAM_ID", "MARGIN_10", "MARGIN_30", "PF_20", "PA_20", "REST_DAYS"]
     for side in ("HOME", "AWAY"):
         side_stats = long[team_cols].rename(columns={c: f"{side}_{c}" for c in team_cols[2:]})
         games = games.merge(
@@ -104,11 +108,23 @@ def build_features(team_logs, upcoming=None):
     games = games.sort_values(["GAME_DATE", "IS_UPCOMING", "GAME_ID"]).reset_index(drop=True)
     games = add_elo(games)
     games = add_rolling_team_stats(games, team_logs)
+    return add_matchup_features(games)
 
+
+TEAM_STATE_COLUMNS = ["ELO", "MARGIN_10", "MARGIN_30", "PF_20", "PA_20", "REST_DAYS"]
+
+
+def add_matchup_features(games):
+    """FEATURES (and EXPECTED_TOTAL) from the HOME_*/AWAY_* team-state columns.
+
+    Shared by the historical pipeline and by hypothetical matchups built from team snapshots.
+    """
     games["ELO_DIFF"] = games["HOME_ELO"] - games["AWAY_ELO"]
     games["MARGIN_10_DIFF"] = games["HOME_MARGIN_10"] - games["AWAY_MARGIN_10"]
     games["MARGIN_30_DIFF"] = games["HOME_MARGIN_30"] - games["AWAY_MARGIN_30"]
     games["REST_DIFF"] = games["HOME_REST_DAYS"] - games["AWAY_REST_DAYS"]
+    # Each side's expected points: its scoring averaged with what the opponent allows
+    games["EXPECTED_TOTAL"] = (games["HOME_PF_20"] + games["AWAY_PA_20"] + games["AWAY_PF_20"] + games["HOME_PA_20"]) / 2
     games["HOME_B2B"] = (games["HOME_REST_DAYS"] == 1).astype(int)
     games["AWAY_B2B"] = (games["AWAY_REST_DAYS"] == 1).astype(int)
     return games

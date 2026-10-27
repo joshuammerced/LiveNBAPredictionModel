@@ -1,4 +1,4 @@
-export type PageId = 'home' | 'rankings' | 'team' | 'matchup';
+export type PageId = 'home' | 'rankings' | 'team' | 'matchup' | 'parlay';
 
 export interface MatchupPair {
   homeId: number;

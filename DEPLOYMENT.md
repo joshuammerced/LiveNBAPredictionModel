@@ -30,12 +30,22 @@ The script creates the `nba-frontend` service account (first run only), deploys 
 backend, grants the frontend permission to call it, then deploys the public frontend with
 `BACKEND_URL` set to the backend's URL. Re-run it any time to ship a new version.
 
-## Deploy automatically on every push (optional)
+## Deploy automatically on every push
 
-`cloudbuild.yaml` builds both images and deploys them to Cloud Run. To run it on every push to
-`main`, create a trigger once in the Google Cloud console: **Cloud Build → Triggers → Create
-trigger**, connect the GitHub repo, branch `^main$`, configuration file `cloudbuild.yaml`.
-The Cloud Build service account needs the *Cloud Run Admin* and *Service Account User* roles.
+One-time setup (needs the gcloud CLI, and a GitHub account with admin access to the repo):
+
+```bash
+export GCP_PROJECT_ID=your-project-id
+./setup-auto-deploy.sh
+```
+
+It creates an `nba-deployer` service account with only the roles a deploy needs, connects the
+GitHub repo to Cloud Build (you approve the Google Cloud Build GitHub app in your browser), and
+adds a trigger that runs `cloudbuild.yaml` on every push to `main`: build both images, push them to
+Artifact Registry, deploy the private backend, then the public frontend. That includes the yearly
+retraining commit, so a new model goes live with no manual step.
+
+Run `gcloud builds submit --config cloudbuild.yaml` to do the same thing by hand.
 
 ## Updating the model
 
@@ -45,6 +55,9 @@ snapshot in `backend/history/`) to `main` only if the new model passes a sanity 
 run the deploy script.
 
 To retrain by hand: `python -m backend.train_model`, then commit `backend/model.json`.
+
+The player-prop model (`backend/props_model.json`) is fitted separately with
+`python -m backend.train_props`. It needs stats.nba.com, so run it locally, about once a season.
 
 Predictions don't need retraining to stay current: Elo, recent form and rest are recomputed from
 the latest results (cached for 15 minutes).

@@ -52,6 +52,8 @@ def get_upcoming_predictions():
             "home_abbr": g["home"],
             "away_abbr": g["away"],
             "game_time": g["local"].strftime("%a, %b %d at %I:%M %p PT"),
+            "season_type": g["season_type"],
+            "stage": g["stage"],
             "win_prob": win_prob,
             "home_player": scorers.get(g["home"]),
             "away_player": scorers.get(g["away"]),

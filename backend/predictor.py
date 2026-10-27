@@ -5,13 +5,14 @@ from datetime import datetime, timedelta
 
 import numpy as np
 import pandas as pd
+from scipy import stats
 from nba_api.stats.static import teams as static_teams
 
 try:
-    from backend.features import build_features
+    from backend.features import TEAM_STATE_COLUMNS, add_matchup_features, build_features
     from backend.game_data import FIRST_SEASON, current_season_start_year, fetch_team_logs
 except ImportError:
-    from features import build_features
+    from features import TEAM_STATE_COLUMNS, add_matchup_features, build_features
     from game_data import FIRST_SEASON, current_season_start_year, fetch_team_logs
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.json")
@@ -20,7 +21,7 @@ ELO_HISTORY_POINTS = 60
 
 _model = None
 _logs_cache = {"logs": None, "fetched_at": 0.0}
-_snapshot_cache = {"teams": None, "logs_fetched_at": None}
+_snapshot_cache = {"teams": None, "state": None, "logs_fetched_at": None}
 
 
 def load_model():
@@ -80,8 +81,23 @@ def next_game_date():
     return datetime.now() + timedelta(days=1)
 
 
-def predict_matchup(home_id, away_id, game_date=None):
-    _, rows = _upcoming_games([(home_id, away_id, game_date or next_game_date())])
+def _hypothetical_rows(pairs):
+    """Feature rows for (home_id, away_id) games played tomorrow, from the cached team snapshot.
+
+    The snapshot already ran every team through the full pipeline for a game tomorrow, so this
+    gives the same features as _upcoming_games without recomputing 13,000 games of history.
+    """
+    league_snapshot()
+    state = _snapshot_cache["state"]
+    rows = pd.DataFrame([
+        {**{f"HOME_{c}": state[h][c] for c in TEAM_STATE_COLUMNS}, **{f"AWAY_{c}": state[a][c] for c in TEAM_STATE_COLUMNS}}
+        for h, a in pairs
+    ])
+    return add_matchup_features(rows)
+
+
+def predict_matchup(home_id, away_id):
+    rows = _hypothetical_rows([(home_id, away_id)])
     probs, contributions, baseline = _score(rows)
     model = load_model()
     row = rows.iloc[0]
@@ -93,6 +109,21 @@ def predict_matchup(home_id, away_id, game_date=None):
     ]
     return {"home_team_id": int(home_id), "away_team_id": int(away_id),
             "home_win_prob": round(float(probs[0]), 3), "factors": factors}
+
+
+def game_projection(home_id, away_id):
+    """Home win probability plus margin and total-points distributions, for parlay legs."""
+    rows = _hypothetical_rows([(home_id, away_id)])
+    p_home = float(_score(rows)[0][0])
+    lines = load_model()["game_lines"]
+    expected = rows["EXPECTED_TOTAL"].iloc[0]
+    return {
+        "home_win_prob": p_home,
+        "margin_mean": lines["margin_sigma"] * float(stats.norm.ppf(p_home)),
+        "margin_sigma": lines["margin_sigma"],
+        "total_mean": None if pd.isna(expected) else lines["total_intercept"] + lines["total_slope"] * float(expected),
+        "total_sigma": lines["total_sigma"],
+    }
 
 
 def _parse_matchup(matchup):
@@ -117,10 +148,7 @@ def league_snapshot():
     state = {}
     for _, r in rows.iterrows():
         for side in ("HOME", "AWAY"):
-            state[int(r[f"{side}_TEAM_ID"])] = {
-                "elo": r[f"{side}_ELO"], "margin_10": r[f"{side}_MARGIN_10"],
-                "margin_30": r[f"{side}_MARGIN_30"], "rest_days": r[f"{side}_REST_DAYS"],
-            }
+            state[int(r[f"{side}_TEAM_ID"])] = {c: r[f"{side}_{c}"] for c in TEAM_STATE_COLUMNS}
 
     played = games[~games["IS_UPCOMING"]]
     season = current_season_start_year()
@@ -146,15 +174,15 @@ def league_snapshot():
         elo_series = np.where(team_games["HOME_TEAM_ID"] == tid, team_games["HOME_ELO"], team_games["AWAY_ELO"])
         elo_history = [{"date": d.strftime("%Y-%m-%d"), "elo": round(float(e), 1)}
                        for d, e in zip(team_games["GAME_DATE"], elo_series)]
-        elo_history.append({"date": game_date.strftime("%Y-%m-%d"), "elo": round(float(s["elo"]), 1)})
+        elo_history.append({"date": game_date.strftime("%Y-%m-%d"), "elo": round(float(s["ELO"]), 1)})
 
         out.append({
             "id": tid, "abbr": t["abbreviation"], "name": t["full_name"],
             "city": t["city"], "nickname": t["nickname"],
-            "elo": round(float(s["elo"]), 1),
-            "margin_10": None if pd.isna(s["margin_10"]) else round(float(s["margin_10"]), 1),
-            "margin_30": None if pd.isna(s["margin_30"]) else round(float(s["margin_30"]), 1),
-            "rest_days": int(s["rest_days"]),
+            "elo": round(float(s["ELO"]), 1),
+            "margin_10": None if pd.isna(s["MARGIN_10"]) else round(float(s["MARGIN_10"]), 1),
+            "margin_30": None if pd.isna(s["MARGIN_30"]) else round(float(s["MARGIN_30"]), 1),
+            "rest_days": int(s["REST_DAYS"]),
             "record": record(season), "last_season_record": record(season - 1),
             "last10": last10[::-1],
             "elo_history": elo_history[-ELO_HISTORY_POINTS:],
@@ -163,5 +191,5 @@ def league_snapshot():
     for rank, team in enumerate(sorted(out, key=lambda t: -t["elo"]), start=1):
         team["elo_rank"] = rank
 
-    _snapshot_cache.update(teams=out, logs_fetched_at=_logs_cache["fetched_at"])
+    _snapshot_cache.update(teams=out, state=state, logs_fetched_at=_logs_cache["fetched_at"])
     return out

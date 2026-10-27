@@ -1,0 +1,165 @@
+{
+  "halflife": 10,
+  "min_games": 5,
+  "stats": {
+    "PTS": {
+      "dist": "normal",
+      "r": null,
+      "calibration": [
+        0.8406,
+        -0.1049
+      ],
+      "test": {
+        "log_loss": 0.6244,
+        "brier": 0.2165,
+        "outcomes": 126493
+      }
+    },
+    "REB": {
+      "dist": "negbin",
+      "r": 7.504,
+      "calibration": [
+        0.9081,
+        0.031
+      ],
+      "test": {
+        "log_loss": 0.5905,
+        "brier": 0.2017,
+        "outcomes": 125294
+      }
+    },
+    "AST": {
+      "dist": "negbin",
+      "r": 9.073,
+      "calibration": [
+        0.9081,
+        0.0036
+      ],
+      "test": {
+        "log_loss": 0.5403,
+        "brier": 0.1807,
+        "outcomes": 111307
+      }
+    },
+    "FG3M": {
+      "dist": "negbin",
+      "r": 6.959,
+      "calibration": [
+        0.9386,
+        0.0318
+      ],
+      "test": {
+        "log_loss": 0.4491,
+        "brier": 0.1463,
+        "outcomes": 98092
+      }
+    },
+    "PRA": {
+      "dist": "normal",
+      "r": null,
+      "calibration": [
+        0.868,
+        -0.06
+      ],
+      "test": {
+        "log_loss": 0.6088,
+        "brier": 0.2094,
+        "outcomes": 127948
+      }
+    },
+    "PR": {
+      "dist": "normal",
+      "r": null,
+      "calibration": [
+        0.8582,
+        -0.091
+      ],
+      "test": {
+        "log_loss": 0.6437,
+        "brier": 0.2256,
+        "outcomes": 129176
+      }
+    },
+    "PA": {
+      "dist": "normal",
+      "r": null,
+      "calibration": [
+        0.8483,
+        -0.0925
+      ],
+      "test": {
+        "log_loss": 0.6352,
+        "brier": 0.2217,
+        "outcomes": 128003
+      }
+    },
+    "RA": {
+      "dist": "normal",
+      "r": null,
+      "calibration": [
+        0.8829,
+        -0.1258
+      ],
+      "test": {
+        "log_loss": 0.6328,
+        "brier": 0.2208,
+        "outcomes": 129086
+      }
+    },
+    "STL": {
+      "dist": "negbin",
+      "r": 6.511,
+      "calibration": [
+        0.9134,
+        -0.0288
+      ],
+      "test": {
+        "log_loss": 0.4246,
+        "brier": 0.1365,
+        "outcomes": 85308
+      }
+    },
+    "BLK": {
+      "dist": "negbin",
+      "r": 4.115,
+      "calibration": [
+        0.9199,
+        -0.1119
+      ],
+      "test": {
+        "log_loss": 0.3058,
+        "brier": 0.0946,
+        "outcomes": 80966
+      }
+    },
+    "STOCKS": {
+      "dist": "negbin",
+      "r": 6.933,
+      "calibration": [
+        0.9293,
+        -0.0119
+      ],
+      "test": {
+        "log_loss": 0.4844,
+        "brier": 0.1582,
+        "outcomes": 97064
+      }
+    },
+    "TOV": {
+      "dist": "negbin",
+      "r": 17.159,
+      "calibration": [
+        0.934,
+        -0.0006
+      ],
+      "test": {
+        "log_loss": 0.468,
+        "brier": 0.1521,
+        "outcomes": 97182
+      }
+    }
+  },
+  "fit_season": "2024-25",
+  "test_season": "2025-26",
+  "trained_at": "2026-10-26"
+}

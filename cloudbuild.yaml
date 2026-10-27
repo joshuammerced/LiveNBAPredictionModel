@@ -1,69 +1,74 @@
+# Build both images and deploy them to Cloud Run. A Cloud Build trigger on pushes to main runs
+# this automatically (see DEPLOYMENT.md); `gcloud builds submit --config cloudbuild.yaml` runs it by hand.
+#
+# Images go to Artifact Registry (gcr.io / Container Registry is shut down for new projects), in the
+# repository Cloud Run's source deploys already created. Tagging with the build id gives every
+# deploy a distinct image, so a rollback is just redeploying an older tag.
+
 steps:
-  # Build backend image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/nba-backend:latest'
-      - '-f'
-      - 'Dockerfile'
-      - '.'
+  - id: build-backend
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_REPO/nba-backend:$BUILD_ID', '-f', 'Dockerfile', '.']
+    waitFor: ['-']
 
-  # Push backend image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/nba-backend:latest'
+  - id: build-frontend
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['build', '-t', '$_REPO/nba-frontend:$BUILD_ID', 'frontend']
+    waitFor: ['-']
 
-  # Build frontend image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'build'
-      - '-t'
-      - 'gcr.io/$PROJECT_ID/nba-frontend:latest'
-      - '-f'
-      - 'frontend/Dockerfile'
-      - 'frontend'
+  - id: push-backend
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REPO/nba-backend:$BUILD_ID']
+    waitFor: ['build-backend']
 
-  # Push frontend image
-  - name: 'gcr.io/cloud-builders/docker'
-    args:
-      - 'push'
-      - 'gcr.io/$PROJECT_ID/nba-frontend:latest'
+  - id: push-frontend
+    name: 'gcr.io/cloud-builders/docker'
+    args: ['push', '$_REPO/nba-frontend:$BUILD_ID']
+    waitFor: ['build-frontend']
 
-  # Deploy backend to Cloud Run (private: only the frontend's service account can invoke it,
-  # granted once by deploy-cloud-run.sh)
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  # Backend is private: only the frontend's service account can invoke it (granted once by
+  # deploy-cloud-run.sh / setup-auto-deploy.sh).
+  - id: deploy-backend
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'gcloud'
     args:
       - 'run'
       - 'deploy'
       - 'nba-backend'
-      - '--image=gcr.io/$PROJECT_ID/nba-backend:latest'
+      - '--image=$_REPO/nba-backend:$BUILD_ID'
       - '--region=$_REGION'
       - '--memory=1Gi'
       - '--no-allow-unauthenticated'
+      - '--set-env-vars=PYTHONUNBUFFERED=1'
+    waitFor: ['push-backend']
 
-  # Deploy frontend to Cloud Run (public), pointed at the backend's URL
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
+  # Frontend is public and points at the backend's URL.
+  - id: deploy-frontend
+    name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: 'bash'
     args:
       - '-c'
       - |
         BACKEND_URL=$$(gcloud run services describe nba-backend --region=$_REGION --format='value(status.url)')
         gcloud run deploy nba-frontend \
-          --image=gcr.io/$PROJECT_ID/nba-frontend:latest \
+          --image=$_REPO/nba-frontend:$BUILD_ID \
           --region=$_REGION \
           --memory=512Mi \
           --service-account=nba-frontend@$PROJECT_ID.iam.gserviceaccount.com \
           --allow-unauthenticated \
           --set-env-vars=BACKEND_URL=$$BACKEND_URL
+    waitFor: ['push-frontend', 'deploy-backend']
 
 substitutions:
   _REGION: us-central1
+  _REPO: us-central1-docker.pkg.dev/${PROJECT_ID}/cloud-run-source-deploy
+
+options:
+  dynamicSubstitutions: true
+  logging: CLOUD_LOGGING_ONLY
 
 images:
-  - 'gcr.io/$PROJECT_ID/nba-backend:latest'
-  - 'gcr.io/$PROJECT_ID/nba-frontend:latest'
+  - '$_REPO/nba-backend:$BUILD_ID'
+  - '$_REPO/nba-frontend:$BUILD_ID'
 
 timeout: '1800s'

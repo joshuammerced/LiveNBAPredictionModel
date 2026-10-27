@@ -59,11 +59,16 @@ def fetch_season_logs(start_year):
     if os.path.exists(path):
         return pd.read_csv(path, dtype={"GAME_ID": str})
 
-    try:
-        df = _nba_api_season(start_year)
-    except Exception as e:
-        print(f"nba_api unavailable for {season_string(start_year)} ({e}); using ESPN instead")
+    if os.getenv("K_SERVICE"):
+        # On Cloud Run stats.nba.com is blocked; don't sit through its timeouts. This happens for
+        # the season that just ended, between the July 1 rollover and the next deploy.
         df = espn.season_team_logs(start_year)
+    else:
+        try:
+            df = _nba_api_season(start_year)
+        except Exception as e:
+            print(f"nba_api unavailable for {season_string(start_year)} ({e}); using ESPN instead")
+            df = espn.season_team_logs(start_year)
     os.makedirs(HISTORY_DIR, exist_ok=True)
     df.to_csv(path, index=False)
     return df

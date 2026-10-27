@@ -82,6 +82,54 @@ function MarginChart({ team }: { team: Team }) {
   );
 }
 
+function record(games: TeamGame[]) {
+  const wins = games.filter((g) => g.result === 'W').length;
+  return `${wins}–${games.length - wins}`;
+}
+
+function vsLabel(g: TeamGame) {
+  return `${g.home ? 'vs' : '@'} ${g.opponent}`;
+}
+
+/** Summary tiles under the margin chart: how the team has been winning and losing lately. */
+function MarginBreakdown({ team }: { team: Team }) {
+  const games = team.last10;
+  if (!games.length) return null;
+  const margin = (g: TeamGame) => g.pts - g.opp_pts;
+  const avg = games.reduce((sum, g) => sum + margin(g), 0) / games.length;
+  const best = games.reduce((a, b) => (margin(b) > margin(a) ? b : a));
+  const worst = games.reduce((a, b) => (margin(b) < margin(a) ? b : a));
+  const close = games.filter((g) => Math.abs(margin(g)) <= 5);
+  const blowouts = games.filter((g) => margin(g) >= 10).length;
+
+  const tiles = [
+    { label: 'Avg margin', value: fmtSigned(avg), note: `pts per game, last ${games.length}` },
+    { label: 'Close games', value: record(close), note: 'decided by 5 or fewer' },
+    { label: 'Wins by 10+', value: String(blowouts), note: `of ${games.length} games` },
+    { label: 'Losses by 10+', value: String(games.filter((g) => margin(g) <= -10).length), note: `of ${games.length} games` },
+    { label: 'Home', value: record(games.filter((g) => g.home)), note: 'record, last 10' },
+    { label: 'Road', value: record(games.filter((g) => !g.home)), note: 'record, last 10' },
+    margin(best) > 0
+      ? { label: 'Best win', value: fmtSigned(margin(best), 0), note: `${vsLabel(best)} · ${best.pts}–${best.opp_pts}` }
+      : { label: 'Best win', value: '—', note: 'no wins in this stretch' },
+    margin(worst) < 0
+      ? { label: 'Worst loss', value: fmtSigned(margin(worst), 0), note: `${vsLabel(worst)} · ${worst.pts}–${worst.opp_pts}` }
+      : { label: 'Worst loss', value: '—', note: 'no losses in this stretch' },
+  ];
+
+  return (
+    <div className="margin-breakdown">
+      {tiles.map((t) => (
+        <div className="margin-tile" key={t.label}>
+          <span className="margin-tile-label">{t.label}</span>
+          <strong className="margin-tile-value">{t.value}</strong>
+          <span className="margin-tile-note">{t.note}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function GameRow({ game, color }: { game: TeamGame; color: string }) {
   const margin = game.pts - game.opp_pts;
   return (
@@ -178,6 +226,7 @@ function TeamStage({ team, teams, nav }: { team: Team; teams: Team[]; nav: Nav }
             <RectTag>Streak {streak(team)}</RectTag>
           </div>
           <div className="tilt-layer-deep"><MarginChart team={team} /></div>
+          <div className="tilt-layer-mid"><MarginBreakdown team={team} /></div>
         </TiltCard>
       </div>
     </div>

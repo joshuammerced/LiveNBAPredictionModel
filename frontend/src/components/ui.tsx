@@ -3,7 +3,7 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { pairColors, teamStyle } from '@/lib/teams';
 
-const MAX_TILT_DEG = 15;
+const MAX_TILT_DEG = 4; // subtle: stronger tilts made card text hard to read
 
 export function teamVars(abbr: string | null | undefined): React.CSSProperties {
   const s = teamStyle(abbr);
@@ -81,7 +81,7 @@ export function TiltCard({ className = '', style, onClick, label, children }: {
     const nx = (x - rect.width / 2) / (rect.width / 2);
     const ny = (y - rect.height / 2) / (rect.height / 2);
     card.style.transform =
-      `perspective(950px) rotateX(${(-ny * MAX_TILT_DEG).toFixed(2)}deg) rotateY(${(nx * MAX_TILT_DEG).toFixed(2)}deg) scale3d(1.022, 1.022, 1.022)`;
+      `perspective(950px) rotateX(${(-ny * MAX_TILT_DEG).toFixed(2)}deg) rotateY(${(nx * MAX_TILT_DEG).toFixed(2)}deg) scale3d(1.008, 1.008, 1.008)`;
     card.style.setProperty('--glare-x', `${x}px`);
     card.style.setProperty('--glare-y', `${y}px`);
   };

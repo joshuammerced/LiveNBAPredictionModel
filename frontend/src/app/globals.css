@@ -349,7 +349,7 @@ button, select {
   position: absolute;
   inset: 0;
   background: radial-gradient(380px circle at var(--glare-x, 50%) var(--glare-y, 50%),
-    rgba(29, 66, 138, 0.08), rgba(200, 16, 46, 0.03) 40%, transparent 70%);
+    rgba(29, 66, 138, 0.04), rgba(200, 16, 46, 0.015) 40%, transparent 70%);
   opacity: 0;
   transition: opacity 0.2s ease;
   pointer-events: none;
@@ -364,8 +364,8 @@ button, select {
 
 .tilt-card:hover::after { opacity: 1; }
 
-.tilt-layer-deep { transform: translateZ(24px); }
-.tilt-layer-mid { transform: translateZ(14px); }
+.tilt-layer-deep { transform: translateZ(6px); }
+.tilt-layer-mid { transform: translateZ(3px); }
 
 .rect-tag {
   display: inline-flex;
@@ -1186,6 +1186,46 @@ button, select {
   height: 100%;
   transform: skewX(-14deg);
   transform-origin: left center;
+}
+
+.margin-breakdown {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  border-top: 1.5px solid #f1f5f9;
+  padding-top: 14px;
+}
+
+.margin-tile {
+  background: var(--bg-subtle);
+  border: 1.5px solid var(--border-light);
+  border-left: 4px solid var(--team-color, var(--nba-blue));
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.margin-tile-label {
+  font-size: 10.5px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-muted);
+}
+
+.margin-tile-value {
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: -0.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.margin-tile-note {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-secondary);
 }
 
 .series-stack {

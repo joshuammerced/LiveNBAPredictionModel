@@ -2,7 +2,7 @@
 
 Run from the repo root:  python -m backend.train_model
 
-Pulls regular-season game logs with leaguegamelog, builds pre-game features, evaluates on the
+Loads regular-season game logs (backend/history/ snapshots), builds pre-game features, evaluates on the
 most recent completed season (trained only on earlier seasons), then refits on everything and
 writes backend/model.json for predictor.py.
 """
@@ -18,12 +18,11 @@ from sklearn.preprocessing import StandardScaler
 
 try:
     from backend.features import FEATURES, build_features
-    from backend.game_data import current_season_start_year, fetch_team_logs, season_string
+    from backend.game_data import FIRST_SEASON, current_season_start_year, fetch_team_logs, season_string
 except ImportError:
     from features import FEATURES, build_features
-    from game_data import current_season_start_year, fetch_team_logs, season_string
+    from game_data import FIRST_SEASON, current_season_start_year, fetch_team_logs, season_string
 
-FIRST_SEASON = 2014  # used only to warm up Elo and rolling stats; not trained on
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.json")
 
 

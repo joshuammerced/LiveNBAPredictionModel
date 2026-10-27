@@ -1,0 +1,8 @@
+# Upload for the backend service (gcloud run deploy --source .): only what the Dockerfile needs.
+.gcloudignore
+.git/
+.github/
+.venv/
+frontend/
+**/__pycache__/
+*.md

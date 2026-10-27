@@ -9,14 +9,13 @@ from nba_api.stats.static import teams as static_teams
 
 try:
     from backend.features import build_features
-    from backend.game_data import current_season_start_year, fetch_team_logs
+    from backend.game_data import FIRST_SEASON, current_season_start_year, fetch_team_logs
 except ImportError:
     from features import build_features
-    from game_data import current_season_start_year, fetch_team_logs
+    from game_data import FIRST_SEASON, current_season_start_year, fetch_team_logs
 
 MODEL_PATH = os.path.join(os.path.dirname(__file__), "model.json")
-HISTORY_SEASONS = 3          # enough history for Elo to settle and 30-game windows to fill
-LOGS_CACHE_SECONDS = 3600
+LOGS_CACHE_SECONDS = 900  # matches the ESPN cache; completed seasons are local files
 ELO_HISTORY_POINTS = 60
 
 _model = None
@@ -34,8 +33,8 @@ def load_model():
 
 def recent_team_logs():
     if time.time() - _logs_cache["fetched_at"] > LOGS_CACHE_SECONDS:
-        start = current_season_start_year()
-        _logs_cache["logs"] = fetch_team_logs(range(start - HISTORY_SEASONS + 1, start + 1))
+        # Same history as training, so live Elo matches what the model was trained on.
+        _logs_cache["logs"] = fetch_team_logs(range(FIRST_SEASON, current_season_start_year() + 1))
         _logs_cache["fetched_at"] = time.time()
     return _logs_cache["logs"]
 
@@ -102,7 +101,7 @@ def _parse_matchup(matchup):
 
 
 def league_snapshot():
-    """Current state of all 30 teams: the same Elo / rolling ratings / rest the model would use
+    """Current state of all 30 teams: the same Elo / rolling margins / rest the model would use
     for a game tomorrow, plus record, last 10 games and recent Elo history."""
     logs = recent_team_logs()
     if _snapshot_cache["teams"] is not None and _snapshot_cache["logs_fetched_at"] == _logs_cache["fetched_at"]:
@@ -119,8 +118,8 @@ def league_snapshot():
     for _, r in rows.iterrows():
         for side in ("HOME", "AWAY"):
             state[int(r[f"{side}_TEAM_ID"])] = {
-                "elo": r[f"{side}_ELO"], "net_rtg_10": r[f"{side}_NET_RTG_10"],
-                "net_rtg_30": r[f"{side}_NET_RTG_30"], "rest_days": r[f"{side}_REST_DAYS"],
+                "elo": r[f"{side}_ELO"], "margin_10": r[f"{side}_MARGIN_10"],
+                "margin_30": r[f"{side}_MARGIN_30"], "rest_days": r[f"{side}_REST_DAYS"],
             }
 
     played = games[~games["IS_UPCOMING"]]
@@ -153,8 +152,8 @@ def league_snapshot():
             "id": tid, "abbr": t["abbreviation"], "name": t["full_name"],
             "city": t["city"], "nickname": t["nickname"],
             "elo": round(float(s["elo"]), 1),
-            "net_rtg_10": None if pd.isna(s["net_rtg_10"]) else round(float(s["net_rtg_10"]), 1),
-            "net_rtg_30": None if pd.isna(s["net_rtg_30"]) else round(float(s["net_rtg_30"]), 1),
+            "margin_10": None if pd.isna(s["margin_10"]) else round(float(s["margin_10"]), 1),
+            "margin_30": None if pd.isna(s["margin_30"]) else round(float(s["margin_30"]), 1),
             "rest_days": int(s["rest_days"]),
             "record": record(season), "last_season_record": record(season - 1),
             "last10": last10[::-1],

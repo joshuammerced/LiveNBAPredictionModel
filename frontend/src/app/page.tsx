@@ -125,7 +125,7 @@ export default function Home() {
       </main>
 
       <footer className="footer-citations">
-        Game logs, schedule and player stats from stats.nba.com via <a href="https://github.com/swar/nba_api" target="_blank" rel="noreferrer">nba_api</a>.
+        Live scores, schedule and player stats from ESPN; historical game logs from stats.nba.com via <a href="https://github.com/swar/nba_api" target="_blank" rel="noreferrer">nba_api</a>.
         {model.data && <> Model trained on {model.data.trained_on} regular seasons, last updated {model.data.trained_at}.</>}
         {' '}Predictions are probabilities, not guarantees.
       </footer>

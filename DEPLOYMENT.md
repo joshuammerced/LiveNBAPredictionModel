@@ -40,14 +40,14 @@ The Cloud Build service account needs the *Cloud Run Admin* and *Service Account
 ## Updating the model
 
 The model is retrained once a year by `.github/workflows/retrain-model.yml` (July 15, or on demand
-from the Actions tab). It commits a new `backend/model.json` to `main` only if the new model passes
-a sanity check. With the Cloud Build trigger above, that commit redeploys the site; without it,
+from the Actions tab). It commits a new `backend/model.json` (and the just-completed season's
+snapshot in `backend/history/`) to `main` only if the new model passes a sanity check. With the Cloud Build trigger above, that commit redeploys the site; without it,
 run the deploy script.
 
 To retrain by hand: `python -m backend.train_model`, then commit `backend/model.json`.
 
 Predictions don't need retraining to stay current: Elo, recent form and rest are recomputed from
-the latest game logs on every request (cached for an hour).
+the latest results (cached for 15 minutes).
 
 ## Environment variables
 
@@ -62,8 +62,15 @@ the latest game logs on every request (cached for an hour).
 - Docker: `docker compose up --build`, then open http://localhost:3000
 - Without Docker: see the README.
 
-## Known issue
+## Data sources
 
-stats.nba.com sometimes blocks or times out requests from cloud servers (Cloud Run, GitHub
-Actions). Requests are retried, but if the backend keeps timing out in the cloud, this is
-the cause, not the deployment config.
+stats.nba.com and cdn.nba.com block requests from cloud providers (Cloud Run, Cloud Build, and
+most likely GitHub Actions), so the deployed backend never calls them:
+
+- **Completed seasons** are committed snapshots in `backend/history/`.
+- **The current season** (results, upcoming games, top scorers) comes from ESPN's public site API
+  (`backend/espn.py`), cached for 15 minutes.
+
+When a season ends, training adds it to `backend/history/` from `nba_api`, falling back to ESPN
+if stats.nba.com is unreachable. ESPN's API is unofficial; if it changes, `backend/espn.py` is the
+only file to update.

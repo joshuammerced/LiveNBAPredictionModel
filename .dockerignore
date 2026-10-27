@@ -34,4 +34,3 @@ htmlcov/
 .git/
 frontend/
 **/__pycache__/
-backend/data/

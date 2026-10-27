@@ -1,0 +1,5 @@
+# Upload for the frontend service (gcloud run deploy --source frontend).
+.gcloudignore
+node_modules/
+.next/
+.env*

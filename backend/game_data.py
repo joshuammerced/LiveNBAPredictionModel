@@ -5,13 +5,18 @@ from datetime import datetime
 import pandas as pd
 from nba_api.stats.endpoints import leaguegamelog
 
-CACHE_DIR = os.path.join(os.path.dirname(__file__), "data")
-FETCH_ATTEMPTS = 3
+try:
+    from backend import espn
+except ImportError:
+    import espn
 
-LOG_COLUMNS = [
-    "SEASON_ID", "TEAM_ID", "GAME_ID", "GAME_DATE", "MATCHUP", "WL",
-    "FGA", "FTA", "OREB", "TOV", "PTS", "PLUS_MINUS",
-]
+# Completed seasons never change, so they're committed here as snapshots. That keeps training
+# reproducible and means the deployed app never has to reach stats.nba.com (which blocks cloud IPs).
+HISTORY_DIR = os.path.join(os.path.dirname(__file__), "history")
+FETCH_ATTEMPTS = 3
+FIRST_SEASON = 2014  # history starts here; the first season only warms up Elo and rolling stats
+
+LOG_COLUMNS = ["SEASON", "TEAM_ID", "GAME_ID", "GAME_DATE", "MATCHUP", "WL", "PTS", "PLUS_MINUS"]
 
 
 def season_string(start_year):
@@ -23,18 +28,7 @@ def current_season_start_year(now=None):
     return now.year if now.month >= 7 else now.year - 1
 
 
-def fetch_season_logs(start_year, use_cache=True):
-    """One row per team per game for a regular season, from a single leaguegamelog call.
-
-    Finished seasons are cached to backend/data/ so retraining doesn't refetch them.
-    The current season is always fetched fresh.
-    """
-    is_current = start_year >= current_season_start_year()
-    cache_path = os.path.join(CACHE_DIR, f"gamelog_{start_year}.csv")
-
-    if use_cache and not is_current and os.path.exists(cache_path):
-        return pd.read_csv(cache_path, dtype={"GAME_ID": str})
-
+def _nba_api_season(start_year):
     for attempt in range(FETCH_ATTEMPTS):
         try:
             df = leaguegamelog.LeagueGameLog(
@@ -45,30 +39,40 @@ def fetch_season_logs(start_year, use_cache=True):
             ).get_data_frames()[0]
             break
         except Exception:
-            # stats.nba.com times out intermittently, especially from cloud IPs
             if attempt == FETCH_ATTEMPTS - 1:
                 raise
             time.sleep(5 * (attempt + 1))
-    df = df[LOG_COLUMNS].copy()
+    df["SEASON"] = start_year
+    return df[LOG_COLUMNS]
 
-    if use_cache and not is_current:
-        try:
-            os.makedirs(CACHE_DIR, exist_ok=True)
-            df.to_csv(cache_path, index=False)
-        except OSError:
-            pass
+
+def fetch_season_logs(start_year):
+    """One row per team per regular-season game.
+
+    Current season: live from ESPN. Completed seasons: the snapshot in backend/history/; if it's
+    missing, it's downloaded from nba_api (or ESPN, if stats.nba.com is unreachable) and saved there.
+    """
+    if start_year >= current_season_start_year():
+        return espn.season_team_logs(start_year)
+
+    path = os.path.join(HISTORY_DIR, f"gamelog_{start_year}.csv")
+    if os.path.exists(path):
+        return pd.read_csv(path, dtype={"GAME_ID": str})
+
+    try:
+        df = _nba_api_season(start_year)
+    except Exception as e:
+        print(f"nba_api unavailable for {season_string(start_year)} ({e}); using ESPN instead")
+        df = espn.season_team_logs(start_year)
+    os.makedirs(HISTORY_DIR, exist_ok=True)
+    df.to_csv(path, index=False)
     return df
 
 
-def fetch_team_logs(start_years, use_cache=True):
-    frames = []
-    for i, year in enumerate(start_years):
-        if i:
-            time.sleep(1)  # stats.nba.com rate-limits rapid requests
-        frames.append(fetch_season_logs(year, use_cache))
-    logs = pd.concat(frames, ignore_index=True)
+def fetch_team_logs(start_years):
+    logs = pd.concat([fetch_season_logs(year) for year in start_years], ignore_index=True)
     logs["GAME_DATE"] = pd.to_datetime(logs["GAME_DATE"])
-    logs["SEASON"] = logs["SEASON_ID"].astype(str).str[-4:].astype(int)
+    logs["GAME_ID"] = logs["GAME_ID"].astype(str)
     return logs.dropna(subset=["WL"])
 
 

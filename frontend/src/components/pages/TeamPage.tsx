@@ -109,8 +109,8 @@ function TeamStage({ team, teams, nav }: { team: Team; teams: Team[]; nav: Nav }
 
   const ratingBars = [
     { name: 'Elo rating', detail: `#${team.elo_rank} of 30`, value: <CountUp value={team.elo} decimals={0} />, pct: ((team.elo - 1300) / 450) * 100, col: color },
-    { name: 'Net rating, last 10', detail: 'pts per 100 poss.', value: team.net_rtg_10 === null ? '—' : <CountUp value={team.net_rtg_10} signed />, pct: (((team.net_rtg_10 ?? -15) + 15) / 30) * 100, col: '#1d428a' },
-    { name: 'Net rating, last 30', detail: 'pts per 100 poss.', value: team.net_rtg_30 === null ? '—' : <CountUp value={team.net_rtg_30} signed />, pct: (((team.net_rtg_30 ?? -15) + 15) / 30) * 100, col: '#059669' },
+    { name: 'Avg margin, last 10', detail: 'pts per game', value: team.margin_10 === null ? '—' : <CountUp value={team.margin_10} signed />, pct: (((team.margin_10 ?? -15) + 15) / 30) * 100, col: '#1d428a' },
+    { name: 'Avg margin, last 30', detail: 'pts per game', value: team.margin_30 === null ? '—' : <CountUp value={team.margin_30} signed />, pct: (((team.margin_30 ?? -15) + 15) / 30) * 100, col: '#059669' },
     { name: 'Win % this season', detail: `${team.record.wins}–${team.record.losses}`, value: pct === null ? '—' : <CountUp value={pct} suffix="%" />, pct: pct ?? 0, col: '#d97706' },
     { name: 'Rest before next game', detail: team.rest_days <= 1 ? 'back-to-back' : 'days off', value: `${team.rest_days}${team.rest_days >= 4 ? '+' : ''} d`, pct: (team.rest_days / 4) * 100, col: '#c8102e' },
   ];
@@ -124,7 +124,7 @@ function TeamStage({ team, teams, nav }: { team: Team; teams: Team[]; nav: Nav }
             <h2>{team.name} <RectTag color={color}>#{team.elo_rank} Elo · Streak {streak(team)}</RectTag></h2>
             <p>
               {team.record.wins}–{team.record.losses} this season · {team.last_season_record.wins}–{team.last_season_record.losses} last season ·
-              Elo {team.elo.toFixed(0)} · Net L10 {fmtSigned(team.net_rtg_10)}
+              Elo {team.elo.toFixed(0)} · Margin L10 {fmtSigned(team.margin_10)}
             </p>
           </div>
         </div>
@@ -150,7 +150,7 @@ function TeamStage({ team, teams, nav }: { team: Team; teams: Team[]; nav: Nav }
         <TiltCard className="chart-card" style={teamVars(team.abbr)}>
           <div className="chart-head tilt-layer-mid">
             <div><h3>02 // Ratings &amp; form</h3><p>The inputs the model uses for this team</p></div>
-            <RectTag>Net L10 {fmtSigned(team.net_rtg_10)}</RectTag>
+            <RectTag>Margin L10 {fmtSigned(team.margin_10)}</RectTag>
           </div>
           <div className="metric-bars-stack tilt-layer-deep">
             {ratingBars.map((b, i) => (

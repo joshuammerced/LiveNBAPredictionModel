@@ -46,8 +46,8 @@ export interface Team {
   nickname: string;
   elo: number;
   elo_rank: number;
-  net_rtg_10: number | null;
-  net_rtg_30: number | null;
+  margin_10: number | null;
+  margin_30: number | null;
   rest_days: number;
   record: WinLoss;
   last_season_record: WinLoss;

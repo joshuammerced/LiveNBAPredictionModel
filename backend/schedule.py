@@ -1,112 +1,65 @@
 import pandas as pd
-from datetime import datetime
-from nba_api.stats.endpoints import scheduleleaguev2, leaguedashplayerstats
-from nba_api.stats.static import teams
 
 try:
+    from backend import espn
+    from backend.game_data import current_season_start_year
     from backend.predictor import predict_home_win_probs
 except ImportError:
+    import espn
+    from game_data import current_season_start_year
     from predictor import predict_home_win_probs
 
+
+def upcoming_games(games):
+    """Games still to tip off today (Pacific time); if there are none, tomorrow's."""
+    now = pd.Timestamp.now(tz="US/Pacific")
+    pending = [{**g, "local": g["start_utc"].tz_convert("US/Pacific")} for g in games if g["state"] == "pre"]
+
+    today = [g for g in pending if g["local"].date() == now.date() and g["local"] > now]
+    if today:
+        return today
+    tomorrow = (now + pd.Timedelta(days=1)).date()
+    return [g for g in pending if g["local"].date() == tomorrow]
+
+
 def get_upcoming_predictions():
-    now = datetime.now()
-    
-    season = f"{now.year}-{str(now.year + 1)[2:]}" if now.month >= 7 else f"{now.year - 1}-{str(now.year)[2:]}" 
-
-    nba_teams = teams.get_teams()
-    team_lookup = {team['id']: team['full_name'] for team in nba_teams}
-    abbr_lookup = {team['id']: team['abbreviation'] for team in nba_teams}
-
-    player_stats_call = leaguedashplayerstats.LeagueDashPlayerStats(season=season)
-    all_players = player_stats_call.get_data_frames()[0]
-
-    star_players = all_players.sort_values(by='PTS', ascending=False).drop_duplicates('TEAM_ID')
-    
-    def get_star_data(team_id):
-        row = star_players[star_players['TEAM_ID'] == team_id]
-        if row.empty:
-            return None
-        row = row.iloc[0]
-
-        efg_pct = row.get('EFG_PCT', row.get('FG_PCT', 0.0))
-        if pd.isna(efg_pct):
-            efg_pct = 0.0
-
-        gp = row.get('GP', 1)
-        if gp == 0 or pd.isna(gp):
-            gp = 1
-
-        return {
-            "team": team_lookup.get(team_id),
-            "name": row['PLAYER_NAME'],
-            "pts_per_game": round(float(row['PTS']) / float(gp), 1),
-            "ast_per_game": round(float(row['AST']) / float(gp), 1),
-            "reb_per_game": round(float(row['REB']) / float(gp), 1),
-            "efg": f"{float(efg_pct) * 100:.1f}%"
-        }
-
-    sched_call = scheduleleaguev2.ScheduleLeagueV2()
-    games_df = sched_call.season_games.get_data_frame()
-
-    status_field = 'gameStatus' if 'gameStatus' in games_df.columns else 'GAME_STATUS_ID'
-    date_field = 'gameDateTimeEst' if 'gameDateTimeEst' in games_df.columns else 'GAME_DATE_EST'
-    home_id_field = 'homeTeam_teamId' if 'homeTeam_teamId' in games_df.columns else 'HOME_TEAM_ID'
-    away_id_field = 'awayTeam_teamId' if 'awayTeam_teamId' in games_df.columns else 'VISITOR_TEAM_ID'
-
-    games_df['dt_naive'] = pd.to_datetime(games_df[date_field]).dt.tz_localize(None)
-    games_df['game_local'] = games_df['dt_naive'].dt.tz_localize('US/Eastern').dt.tz_convert('US/Pacific')
-    now_pacific_date = pd.Timestamp.now(tz='US/Pacific').date()
-    now_pacific_time = pd.Timestamp.now(tz='US/Pacific')
-    
-    upcoming = games_df[
-    (games_df['game_local'].dt.date == now_pacific_date) & 
-    (games_df[status_field].astype(float) == 1)&
-    (games_df['game_local'] > now_pacific_time)
-    ].copy()
-
-    if upcoming.empty:
-        tommorw_pacific_date = now_pacific_date + pd.Timedelta(days=1)
-        upcoming = games_df[
-            (games_df['game_local'].dt.date == tommorw_pacific_date) &
-            (games_df[status_field].astype(float) == 1)
-        ].copy()
+    season = current_season_start_year()
+    upcoming = upcoming_games(espn.season_games(season))
 
     try:
-        win_probs = predict_home_win_probs(list(zip(
-            upcoming[home_id_field], upcoming[away_id_field], upcoming['dt_naive']
-        )))
+        scorers = espn.top_scorers(season)
+    except Exception as e:
+        print(f"Player stats unavailable: {e}")
+        scorers = {}
+
+    teams = espn.NBA_TEAMS
+    try:
+        win_probs = predict_home_win_probs([
+            # Game logs use Eastern dates, so score each game on its Eastern tip-off date.
+            (teams[g["home"]]["id"], teams[g["away"]]["id"], g["start_utc"].tz_convert("US/Eastern").tz_localize(None))
+            for g in upcoming
+        ])
     except Exception as e:
         print(f"Model prediction failed, falling back to 50/50: {e}")
         win_probs = [0.50] * len(upcoming)
 
-    predictions = []
-    for (_, row), win_prob in zip(upcoming.iterrows(), win_probs):
-        home_id = row.get(home_id_field)
-        away_id = row.get(away_id_field)
-        game_datetime = row.get('game_local')
-        
-        if pd.notna(game_datetime):
-            game_time_str = row['game_local'].strftime("%a, %b %d at %I:%M %p PT")
-        else:
-            game_time_str = "Time TBD"
-        
-        prediction = {
-            "home_team": team_lookup.get(home_id),
-            "away_team": team_lookup.get(away_id),
-            "home_team_id": int(home_id),
-            "away_team_id": int(away_id),
-            "home_abbr": abbr_lookup.get(home_id),
-            "away_abbr": abbr_lookup.get(away_id),
-            "game_time": game_time_str,
+    return [
+        {
+            "home_team": teams[g["home"]]["full_name"],
+            "away_team": teams[g["away"]]["full_name"],
+            "home_team_id": teams[g["home"]]["id"],
+            "away_team_id": teams[g["away"]]["id"],
+            "home_abbr": g["home"],
+            "away_abbr": g["away"],
+            "game_time": g["local"].strftime("%a, %b %d at %I:%M %p PT"),
             "win_prob": win_prob,
-            "home_player": get_star_data(home_id),
-            "away_player": get_star_data(away_id)
+            "home_player": scorers.get(g["home"]),
+            "away_player": scorers.get(g["away"]),
         }
-        predictions.append(prediction)
+        for g, win_prob in zip(upcoming, win_probs)
+    ]
 
-    return predictions
 
 if __name__ == "__main__":
     import json
-    results = get_upcoming_predictions()
-    print(json.dumps(results, indent=2))
+    print(json.dumps(get_upcoming_predictions(), indent=2))

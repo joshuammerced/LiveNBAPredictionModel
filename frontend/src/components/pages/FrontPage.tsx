@@ -109,7 +109,7 @@ function ClosestCall({ games, nav }: { games: Prediction[]; nav: Nav }) {
 
 function KpiStrip({ teams, model, nav }: { teams: Team[] | null; model: ModelInfo | null; nav: Nav }) {
   const topElo = teams && [...teams].sort((a, b) => a.elo_rank - b.elo_rank)[0];
-  const hottest = teams && [...teams].filter((t) => t.net_rtg_10 !== null).sort((a, b) => (b.net_rtg_10 ?? 0) - (a.net_rtg_10 ?? 0))[0];
+  const hottest = teams && [...teams].filter((t) => t.margin_10 !== null).sort((a, b) => (b.margin_10 ?? 0) - (a.margin_10 ?? 0))[0];
 
   return (
     <div className="kpi-strip">
@@ -142,8 +142,8 @@ function KpiStrip({ teams, model, nav }: { teams: Team[] | null; model: ModelInf
       {hottest ? (
         <TiltCard className="kpi-box" style={teamVars(hottest.abbr)} label={`Open ${hottest.name}`} onClick={() => nav.goTo('team', { teamId: hottest.id })}>
           <div className="kpi-top-tag tilt-layer-mid"><span>Hottest team (last 10)</span><span className="kpi-rect-pill">{hottest.abbr}</span></div>
-          <div className="kpi-big-num tilt-layer-deep"><CountUp value={hottest.net_rtg_10 ?? 0} signed /> NET</div>
-          <div className="kpi-foot tilt-layer-mid">{hottest.name} · points per 100 possessions vs. opponents</div>
+          <div className="kpi-big-num tilt-layer-deep"><CountUp value={hottest.margin_10 ?? 0} signed /> PPG</div>
+          <div className="kpi-foot tilt-layer-mid">{hottest.name} · average margin over the last 10 games</div>
         </TiltCard>
       ) : <TiltCard className="kpi-box"><LoadingPanel label="Loading form…" /></TiltCard>}
     </div>
@@ -195,7 +195,7 @@ export function FrontPage({ predictions, teams, model, nav }: {
           <div className="tilt-layer-deep">
             <div className="portal-num"><span>Page 02 // Rankings</span></div>
             <h3>Power Rankings</h3>
-            <p>All 30 teams ranked by Elo, with recent net rating and form. Filter by conference and re-sort.</p>
+            <p>All 30 teams ranked by Elo, with recent scoring margin and form. Filter by conference and re-sort.</p>
           </div>
           <div className="portal-go tilt-layer-mid"><span>Open rankings</span><span>►</span></div>
         </TiltCard>

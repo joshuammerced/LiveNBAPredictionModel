@@ -23,5 +23,3 @@ Thumbs.db
 
 # Environment variables (Sensitive API keys/DB passwords)
 .env
-# Cached nba_api game logs (rebuilt by backend/train_model.py)
-backend/data/

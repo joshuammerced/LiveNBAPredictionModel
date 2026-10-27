@@ -12,8 +12,8 @@ import {
 const FACTOR_LABELS: Record<string, string> = {
   HOME_COURT: 'Home-court advantage',
   ELO_DIFF: 'Elo rating gap',
-  NET_RTG_10_DIFF: 'Form, last 10 games',
-  NET_RTG_30_DIFF: 'Form, last 30 games',
+  MARGIN_10_DIFF: 'Form, last 10 games',
+  MARGIN_30_DIFF: 'Form, last 30 games',
   REST_DIFF: 'Rest advantage',
   HOME_B2B: 'Home team on a back-to-back',
   AWAY_B2B: 'Away team on a back-to-back',
@@ -24,7 +24,7 @@ function factorValue(f: Factor): string {
   if (f.feature.endsWith('B2B')) return f.value ? 'yes' : 'no';
   if (f.feature === 'ELO_DIFF') return `${fmtSigned(f.value, 0)} pts`;
   if (f.feature === 'REST_DIFF') return `${fmtSigned(f.value, 0)} days`;
-  return `${fmtSigned(f.value)} net`;
+  return `${fmtSigned(f.value)} pts/g`;
 }
 
 /** Diverging bars: right of center pushes toward the home team, left toward the away team. */
@@ -138,8 +138,8 @@ function MatchupResultView({ result, home, away, nav }: { result: MatchupResult;
           <Divider title="Tale of the tape" />
           <div className="tape-rows">
             <TapeRow label="Elo rating" a={away.elo} b={home.elo} aText={away.elo.toFixed(0)} bText={home.elo.toFixed(0)} min={1300} max={1750} colorA={ca} colorB={ch} />
-            <TapeRow label="Net rating, last 10" a={away.net_rtg_10 ?? 0} b={home.net_rtg_10 ?? 0} aText={fmtSigned(away.net_rtg_10)} bText={fmtSigned(home.net_rtg_10)} min={-15} max={15} colorA={ca} colorB={ch} />
-            <TapeRow label="Net rating, last 30" a={away.net_rtg_30 ?? 0} b={home.net_rtg_30 ?? 0} aText={fmtSigned(away.net_rtg_30)} bText={fmtSigned(home.net_rtg_30)} min={-15} max={15} colorA={ca} colorB={ch} />
+            <TapeRow label="Avg margin, last 10" a={away.margin_10 ?? 0} b={home.margin_10 ?? 0} aText={fmtSigned(away.margin_10)} bText={fmtSigned(home.margin_10)} min={-15} max={15} colorA={ca} colorB={ch} />
+            <TapeRow label="Avg margin, last 30" a={away.margin_30 ?? 0} b={home.margin_30 ?? 0} aText={fmtSigned(away.margin_30)} bText={fmtSigned(home.margin_30)} min={-15} max={15} colorA={ca} colorB={ch} />
             <TapeRow label="Win % this season" a={winPct(away.record) ?? 0} b={winPct(home.record) ?? 0}
                      aText={`${away.record.wins}–${away.record.losses}`} bText={`${home.record.wins}–${home.record.losses}`} max={100} colorA={ca} colorB={ch} />
             <TapeRow label="Last 10 games" a={l10(away)} b={l10(home)} aText={`${l10(away)}–${away.last10.length - l10(away)}`} bText={`${l10(home)}–${home.last10.length - l10(home)}`} max={10} colorA={ca} colorB={ch} />

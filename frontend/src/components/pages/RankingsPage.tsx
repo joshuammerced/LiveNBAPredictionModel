@@ -11,14 +11,14 @@ type SortKey = 'elo' | 'net10' | 'net30' | 'winPct';
 
 const SORTS: { key: SortKey; label: string; value: (t: Team) => number }[] = [
   { key: 'elo', label: 'Elo rating', value: (t) => t.elo },
-  { key: 'net10', label: 'Net rating, last 10', value: (t) => t.net_rtg_10 ?? -99 },
-  { key: 'net30', label: 'Net rating, last 30', value: (t) => t.net_rtg_30 ?? -99 },
+  { key: 'net10', label: 'Avg margin, last 10', value: (t) => t.margin_10 ?? -99 },
+  { key: 'net30', label: 'Avg margin, last 30', value: (t) => t.margin_30 ?? -99 },
   { key: 'winPct', label: 'Win % this season', value: (t) => winPct(t.record) ?? -1 },
 ];
 
 // Bar scales: map each stat onto 0–100% of the track.
 const eloPct = (elo: number) => ((elo - 1300) / 450) * 100;
-const netPct = (n: number | null) => (n === null ? 0 : ((n + 15) / 30) * 100);
+const marginPct = (n: number | null) => (n === null ? 0 : ((n + 15) / 30) * 100);
 
 export function streak(team: Team): string {
   const games = team.last10;
@@ -53,12 +53,12 @@ export function TeamCard({ team, nav }: { team: Team; nav: Nav }) {
           <div className="rect-progress-track"><GrowBar className="rect-progress-fill" pct={eloPct(team.elo)} color={color} /></div>
         </div>
         <div className="mini-stat-box">
-          <div className="mini-stat-top"><span>Net L10</span><strong>{team.net_rtg_10 === null ? '—' : <CountUp value={team.net_rtg_10} signed />}</strong></div>
-          <div className="rect-progress-track"><GrowBar className="rect-progress-fill" pct={netPct(team.net_rtg_10)} color="#1d428a" delay={35} /></div>
+          <div className="mini-stat-top"><span>Margin L10</span><strong>{team.margin_10 === null ? '—' : <CountUp value={team.margin_10} signed />}</strong></div>
+          <div className="rect-progress-track"><GrowBar className="rect-progress-fill" pct={marginPct(team.margin_10)} color="#1d428a" delay={35} /></div>
         </div>
         <div className="mini-stat-box">
-          <div className="mini-stat-top"><span>Net L30</span><strong>{team.net_rtg_30 === null ? '—' : <CountUp value={team.net_rtg_30} signed />}</strong></div>
-          <div className="rect-progress-track"><GrowBar className="rect-progress-fill" pct={netPct(team.net_rtg_30)} color="#059669" delay={70} /></div>
+          <div className="mini-stat-top"><span>Margin L30</span><strong>{team.margin_30 === null ? '—' : <CountUp value={team.margin_30} signed />}</strong></div>
+          <div className="rect-progress-track"><GrowBar className="rect-progress-fill" pct={marginPct(team.margin_30)} color="#059669" delay={70} /></div>
         </div>
         <div className="mini-stat-box">
           <div className="mini-stat-top"><span>Last 10</span><strong>{l10wins}–{team.last10.length - l10wins}</strong></div>
@@ -86,7 +86,7 @@ export function RankingsPage({ teams, nav }: { teams: Loadable<Team[]>; nav: Nav
 
   return (
     <section>
-      <Divider title="Power rankings · all 30 teams" sub="Elo updates after every game · net rating = point margin per 100 possessions" />
+      <Divider title="Power rankings · all 30 teams" sub="Elo updates after every game · margin = average points scored minus allowed" />
 
       <div className="filter-toolbar">
         <div className="filter-pills" role="group" aria-label="Conference">
@@ -115,7 +115,7 @@ export function RankingsPage({ teams, nav }: { teams: Loadable<Team[]>; nav: Nav
         />
       )}
       <p className="footnote">
-        Net ratings above zero mean a team has outscored opponents over that stretch; {fmtSigned(10)} is elite, {fmtSigned(-10)} is bottom-tier.
+        Margins above zero mean a team has outscored opponents over that stretch; {fmtSigned(10)} is elite, {fmtSigned(-10)} is bottom-tier.
       </p>
     </section>
   );

@@ -3,10 +3,10 @@
 🏀 NBA Game Outcome Predictor
 
 Win probabilities for every upcoming NBA game from a model trained on a decade of game logs,
-with live data from the NBA API, deployed on Google Cloud Run.
+updated live from ESPN's public API, deployed on Google Cloud Run.
 
 🧠 Features
-📊 Live data from stats.nba.com via `nba_api`
+📊 Live scores, schedule and player stats from ESPN's public API
 🤖 Home-team win probability for every upcoming game, with a per-factor explanation
 🏆 Power rankings, team pages and a matchup lab for any two teams
 ☁️ Deployed on Google Cloud Run
@@ -14,9 +14,10 @@ with live data from the NBA API, deployed on Google Cloud Run.
 
 📈 Model
 
-A logistic regression on pre-game features: Elo rating difference, rolling net rating (last 10
-and 30 games), rest days and back-to-backs. Trained on regular-season game logs from `nba_api`
-(`leaguegamelog`); evaluated on the most recent completed season, which it never trained on.
+A logistic regression on pre-game features: Elo rating difference, average point margin (last 10
+and 30 games), rest days and back-to-backs. Trained on regular-season game logs since 2014-15
+(snapshots in `backend/history/`, pulled from `nba_api`); evaluated on the most recent completed
+season, which it never trained on.
 
 The trained model is `backend/model.json`. Retrain (from the repo root):
 
@@ -31,8 +32,10 @@ python -m backend.train_model
 |---|---|
 | `backend/model.json` | The trained model: learned weights plus held-out test scores |
 | `backend/train_model.py` | Trains and evaluates the model, writes `model.json` |
-| `backend/features.py` | Pre-game features: Elo, rolling net rating, rest |
-| `backend/game_data.py` | Downloads and caches game logs |
+| `backend/features.py` | Pre-game features: Elo, rolling point margin, rest |
+| `backend/game_data.py` | Game logs: completed seasons from `backend/history/`, current season from ESPN |
+| `backend/history/` | One CSV per completed season (scores only); never changes once written |
+| `backend/espn.py` | Live data from ESPN: current-season results, upcoming games, top scorers |
 | `backend/predictor.py` | Scores games with `model.json`; team snapshots for the site |
 | `backend/schedule.py` | Upcoming games and each team's top scorer |
 | `backend/main.py` | FastAPI app: `/predictions`, `/teams`, `/matchup`, `/model` |
